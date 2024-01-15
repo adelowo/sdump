@@ -1,0 +1,42 @@
+name: Build, run all tests
+on:
+  pull_request:
+
+  push:
+    branches:
+      - main
+
+jobs:
+
+  build:
+    runs-on: ubuntu-latest
+
+    services:
+
+    steps:
+
+    - name: Get the version
+      id: get_version
+      run: echo ::set-output name=tag::$(echo ${GITHUB_SHA:8})
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: ^1.21
+      id: go
+
+    - name: Check out code
+      uses: actions/checkout@v4
+      with:
+        submodules: true
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Get and verify dependencies
+      run: go mod download && go mod verify
+
+    - name: Build app to make sure there are zero issues
+      run: go build -o app ./cmd
+
+    - name: Run all tests
+      run: go test -tags integration -v ./...
+
