@@ -1,5 +1,5 @@
 package tui
 
-type DumpURL struct {
-	URL string
+type DumpURLMsg struct {
+	URL string `json:"url,omitempty"`
 }
