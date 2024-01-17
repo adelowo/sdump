@@ -11,6 +11,7 @@ require (
 )
 
 require (
+	github.com/atotto/clipboard v0.1.4 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/containerd/console v1.0.4-0.20230706203907-8f6c4e4faef5 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect

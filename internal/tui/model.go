@@ -1,81 +1,51 @@
 package tui
 
 import (
-	"fmt"
-	"time"
-
-	"github.com/charmbracelet/bubbles/spinner"
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
-type errMsg error
-
 type model struct {
-	spinner  spinner.Model
-	quitting bool
-	loading  bool
-	err      error
-	// in the future, we will persist urls
-	shouldCreateEndpoint bool
+	title string
 }
 
 func initialModel() model {
-	s := spinner.New()
-	s.Spinner = spinner.Meter
-	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
-	return model{spinner: s, shouldCreateEndpoint: true}
+	return model{
+		title: "Sdump",
+	}
 }
 
 func (m model) Init() tea.Cmd {
-	return tea.Batch(m.spinner.Tick)
+	return textinput.Blink
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
+
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "q", "esc", "ctrl+c":
-			m.quitting = true
+		switch msg.Type {
+		case tea.KeyEnter:
+			return m, nil
+
+		case tea.KeyCtrlC:
 			return m, tea.Quit
-		default:
-			return m, nil
 		}
-
-	case errMsg:
-		m.err = msg
-		return m, nil
-
-	case spinner.TickMsg:
-		var cmd tea.Cmd
-		m.spinner, cmd = m.spinner.Update(msg)
-		return m, cmd
-
-	default:
-		if m.shouldCreateEndpoint {
-			m.loading = true
-
-			time.Sleep(time.Second * 8)
-
-			m.loading = false
-			return m, nil
-		}
-		return m, nil
 	}
+
+	return m, cmd
 }
 
 func (m model) View() string {
-	if m.err != nil {
-		return m.err.Error()
-	}
+	browserHeader := lipgloss.Place(
+		200, 3,
+		lipgloss.Center, lipgloss.Center,
+		lipgloss.JoinVertical(lipgloss.Center,
+			boldenString("Inspecting incoming HTTP requests", true),
+			boldenString(`
+Waiting for requests on https://sdump.app/d/ytiep2.. Ctrl-j/k or arrow up and down to navigate requests`, true),
+		))
 
-	if m.loading {
-		str := fmt.Sprintf("\n\n   %s Loading your sdump URL...press q to quit\n\n", m.spinner.View())
-		return str
-	}
-
-	if m.quitting {
-		return "\n"
-	}
-	return "dEfault page here"
+	return browserHeader
 }
