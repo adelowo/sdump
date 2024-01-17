@@ -7,7 +7,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/spinner"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -18,21 +20,52 @@ type model struct {
 
 	dumpURL *url.URL
 	err     error
+
+	httpRequests incomingHTTPRequestMsg
+	// requestList is shown on the LHS side of the TUI
+	requestList list.Model
+	// viewport because it shouldn't be editable.
+	// A textarea is editable and does not work for us here
+	detailedRequestView viewport.Model
 }
 
 func initialModel() model {
-	return model{
+	m := model{
 		title: "Sdump",
 		spinner: spinner.New(
 			spinner.WithSpinner(spinner.Line),
 			spinner.WithStyle(lipgloss.NewStyle().Foreground(lipgloss.Color("205"))),
 		),
+		requestList: list.New([]list.Item{
+			item{
+				title: "oops",
+				desc:  "oops oops oops oops",
+				ip:    "0.0.0.0",
+			},
+			item{
+				title: "oops",
+				desc:  "oops oops oops oops",
+				ip:    "0.0.0.0",
+			},
+		}, list.NewDefaultDelegate(), 0, 0),
+		detailedRequestView: viewport.New(0, 0),
 	}
+
+	m.requestList.Title = "Incoming requests"
+	m.requestList.SetShowTitle(true)
+
+	m.detailedRequestView.SetContent(`
+		{"name" : "Lanre"}
+	`)
+
+	return m
 }
 
 func (m model) isInitialized() bool { return m.dumpURL != nil }
 
 func (m model) Init() tea.Cmd {
+	tea.SetWindowTitle(m.title)
+
 	return tea.Batch(m.spinner.Tick, func() tea.Msg {
 		time.Sleep(time.Second * 2)
 		return DumpURLMsg{
@@ -73,7 +106,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-	return m, cmd
+	var cmds []tea.Cmd
+
+	m.requestList, cmd = m.requestList.Update(msg)
+	cmds = append(cmds, cmd)
+
+	m.detailedRequestView, cmd = m.detailedRequestView.Update(msg)
+	cmds = append(cmds, cmd)
+
+	return m, tea.Batch(cmds...)
 }
 
 func (m model) View() string {
@@ -102,5 +143,11 @@ func (m model) View() string {
 Waiting for requests on %s.. Ctrl-j/k or arrow up and down to navigate requests`, m.dumpURL), true),
 		))
 
-	return m.spinner.View() + browserHeader
+	return m.spinner.View() + browserHeader + strings.Repeat("\n", 5) + m.makeTable()
+}
+
+func (m model) makeTable() string {
+	return lipgloss.JoinHorizontal(lipgloss.Top,
+		lipgloss.NewStyle().Margin(1).Render(m.requestList.View()),
+		lipgloss.NewStyle().Padding(2).Render(m.detailedRequestView.View()))
 }
