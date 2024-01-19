@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/adelowo/sdump/config"
+	"github.com/adelowo/sdump/internal/tui"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -54,10 +55,6 @@ func initializeConfig(cfg *config.Config) error {
 	return viper.Unmarshal(cfg)
 }
 
-func setupFlags(cmd *cobra.Command) {
-	cmd.Flags().StringP("config", "c", defaultConfigFilePath, "Config file")
-}
-
 func Execute() error {
 	cfg := &config.Config{}
 
@@ -67,7 +64,13 @@ func Execute() error {
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			return initializeConfig(cfg)
 		},
-		RunE: func(_ *cobra.Command, _ []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			t := tui.New(cfg)
+
+			if _, err := t.Run(); err != nil {
+				return err
+			}
+
 			return nil
 		},
 	}
@@ -75,7 +78,7 @@ func Execute() error {
 	rootCmd.SetVersionTemplate(
 		fmt.Sprintf("Version: %v\nCommit: %v\nDate: %v\n", Version, Commit, Date))
 
-	setupFlags(rootCmd)
+	rootCmd.Flags().StringP("config", "c", defaultConfigFilePath, "Config file. This is in YAML")
 
 	return rootCmd.Execute()
 }
