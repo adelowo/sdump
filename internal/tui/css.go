@@ -8,16 +8,16 @@ import (
 )
 
 var (
-	color        = lipgloss.AdaptiveColor{Light: "#111222", Dark: "#FAFAFA"}
-	primaryColor = lipgloss.Color("#4636f5")
-	greenColor   = lipgloss.Color("#9dcc3a")
-	redColor     = lipgloss.Color("#ff0000")
-	whiteColor   = lipgloss.Color("#ffffff")
-	blackColor   = lipgloss.Color("#000000")
-	orangeColor  = lipgloss.Color("#D3A347")
-	feintColor   = lipgloss.AdaptiveColor{Light: "#333333", Dark: "#888888"}
-	irisColor    = lipgloss.Color("#5D5FEF")
-	fuschiaColor = lipgloss.Color("#EF5DA8")
+	color = lipgloss.AdaptiveColor{Light: "#111222", Dark: "#FAFAFA"}
+	// primaryColor = lipgloss.Color("#4636f5")
+	// greenColor   = lipgloss.Color("#9dcc3a")
+	// redColor     = lipgloss.Color("#ff0000")
+	// whiteColor   = lipgloss.Color("#ffffff")
+	// blackColor   = lipgloss.Color("#000000")
+	// orangeColor  = lipgloss.Color("#D3A347")
+	feintColor = lipgloss.AdaptiveColor{Light: "#333333", Dark: "#888888"}
+	// irisColor    = lipgloss.Color("#5D5FEF")
+	// fuschiaColor = lipgloss.Color("#EF5DA8")
 
 	defaultTextStyle = lipgloss.NewStyle().Foreground(color)
 )

@@ -24,7 +24,6 @@ type model struct {
 	dumpURL *url.URL
 	err     error
 
-	httpRequests incomingHTTPRequestMsg
 	// requestList is shown on the LHS side of the TUI
 	requestList list.Model
 	// viewport because it shouldn't be editable.
