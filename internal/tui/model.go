@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"golang.org/x/term"
 )
 
 type model struct {
@@ -43,12 +45,12 @@ func initialModel() model {
 				ip:    "0.0.0.0",
 			},
 			item{
-				title: "oops",
-				desc:  "oops oops oops oops",
+				title: "omo",
+				desc:  "omo oops oops oops",
 				ip:    "0.0.0.0",
 			},
 		}, list.NewDefaultDelegate(), 0, 0),
-		detailedRequestView: viewport.New(0, 0),
+		detailedRequestView: viewport.New(100, 50),
 	}
 
 	m.requestList.Title = "Incoming requests"
@@ -65,6 +67,14 @@ func (m model) isInitialized() bool { return m.dumpURL != nil }
 
 func (m model) Init() tea.Cmd {
 	tea.SetWindowTitle(m.title)
+
+	width, height, err := term.GetSize(int(os.Stdout.Fd()))
+	if err != nil {
+		return nil
+	}
+
+	m.detailedRequestView.Width = width
+	m.detailedRequestView.Height = height
 
 	return tea.Batch(m.spinner.Tick, func() tea.Msg {
 		time.Sleep(time.Second * 2)
@@ -95,6 +105,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.err = err
 			return m, cmd
 		}
+
+	case tea.WindowSizeMsg:
+
+		h, v := lipgloss.NewStyle().Margin(1, 2).GetFrameSize()
+		m.requestList.SetSize(msg.Width-20-h, msg.Height-20-v)
 
 	case tea.KeyMsg:
 		switch msg.Type {
@@ -148,6 +163,6 @@ Waiting for requests on %s.. Ctrl-j/k or arrow up and down to navigate requests`
 
 func (m model) makeTable() string {
 	return lipgloss.JoinHorizontal(lipgloss.Top,
-		lipgloss.NewStyle().Margin(1).Render(m.requestList.View()),
-		lipgloss.NewStyle().Padding(2).Render(m.detailedRequestView.View()))
+		lipgloss.NewStyle().Margin(1, 4).Render(m.requestList.View()),
+		lipgloss.NewStyle().Padding(1, 4).Render(m.detailedRequestView.View()))
 }
