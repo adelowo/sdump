@@ -1,7 +1,8 @@
-package cmd
+package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -28,6 +29,12 @@ const (
 	defaultConfigFilePath = "config"
 	envPrefix             = "SDUMP"
 )
+
+func main() {
+	if err := Execute(); err != nil {
+		log.Fatal(err)
+	}
+}
 
 func initializeConfig(cfg *config.Config) error {
 	homePath, err := os.UserHomeDir()
@@ -64,7 +71,7 @@ func Execute() error {
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			return initializeConfig(cfg)
 		},
-		RunE: func(cmd *cobra.Command, _ []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			t := tui.New(cfg)
 
 			if _, err := t.Run(); err != nil {
