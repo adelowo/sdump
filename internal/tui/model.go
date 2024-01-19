@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"net/url"
@@ -56,9 +57,18 @@ func initialModel() model {
 	m.requestList.Title = "Incoming requests"
 	m.requestList.SetShowTitle(true)
 
-	m.detailedRequestView.SetContent(`
-		{"name" : "Lanre"}
+	b := new(bytes.Buffer)
+
+	err := highlightCode(b, `
+		{"name": "lanre"}
 	`)
+	// TODO: handle this probably. TUI design is the most important
+	// bit right now
+	if err != nil {
+		panic(err)
+	}
+
+	m.detailedRequestView.SetContent(b.String())
 
 	return m
 }

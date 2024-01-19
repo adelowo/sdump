@@ -1,6 +1,11 @@
 package tui
 
-import "github.com/charmbracelet/lipgloss"
+import (
+	"io"
+
+	"github.com/alecthomas/chroma/v2/quick"
+	"github.com/charmbracelet/lipgloss"
+)
 
 var (
 	color        = lipgloss.AdaptiveColor{Light: "#111222", Dark: "#FAFAFA"}
@@ -35,4 +40,10 @@ func boldenString(s string, withFeint bool) string {
 	}
 
 	return style.Render(s)
+}
+
+func highlightCode(w io.Writer, s string) error {
+	// TODO: make monokai configurable
+	err := quick.Highlight(w, s, "json", "terminal256", "monokai")
+	return err
 }
