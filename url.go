@@ -9,8 +9,6 @@ import (
 	"github.com/uptrace/bun"
 )
 
-var _ bun.BeforeInsertHook = (*URLEndpoint)(nil)
-
 type URLEndpointMetadata struct{}
 
 type URLEndpoint struct {
@@ -24,15 +22,14 @@ type URLEndpoint struct {
 	UpdatedAt time.Time  `bun:",nullzero,notnull,default:current_timestamp" json:"updated_at,omitempty" bson:"updated_at"`
 	DeletedAt *time.Time `bun:",soft_delete,nullzero" json:"-,omitempty" bson:"deleted_at"`
 
-	bun.BaseModel
+	bun.BaseModel `bun:"table:urls"`
 }
 
-func (u *URLEndpoint) BeforeInsert(ctx context.Context,
-	query *bun.InsertQuery,
-) error {
-	u.Reference = xid.New().String()
-	u.IsActive = true
-	return nil
+func NewURLEndpoint() *URLEndpoint {
+	return &URLEndpoint{
+		Reference: xid.New().String(),
+		IsActive:  true,
+	}
 }
 
 type URLRepository interface {

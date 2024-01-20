@@ -12,12 +12,8 @@ import (
 )
 
 const (
-	// DatabaseTypeSqlite3 is a DatabaseType of type sqlite3.
-	DatabaseTypeSqlite3 DatabaseType = "sqlite3"
 	// DatabaseTypePsql is a DatabaseType of type psql.
 	DatabaseTypePsql DatabaseType = "psql"
-	// DatabaseTypeMysql is a DatabaseType of type mysql.
-	DatabaseTypeMysql DatabaseType = "mysql"
 )
 
 var ErrInvalidDatabaseType = errors.New("not a valid DatabaseType")
@@ -35,9 +31,7 @@ func (x DatabaseType) IsValid() bool {
 }
 
 var _DatabaseTypeValue = map[string]DatabaseType{
-	"sqlite3": DatabaseTypeSqlite3,
-	"psql":    DatabaseTypePsql,
-	"mysql":   DatabaseTypeMysql,
+	"psql": DatabaseTypePsql,
 }
 
 // ParseDatabaseType attempts to convert a string to a DatabaseType.

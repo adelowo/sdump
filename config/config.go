@@ -1,6 +1,6 @@
 package config
 
-// ENUM(sqlite3,psql,mysql)
+// ENUM(psql)
 type DatabaseType string
 
 type SSHConfig struct {
@@ -27,8 +27,9 @@ type HTTPConfig struct {
 	AdminSecret string `mapstructure:"admin_secret" json:"admin_secret,omitempty"`
 
 	Database struct {
-		DSN  string       `mapstructure:"dsn" json:"dsn,omitempty" yaml:"dsn"`
-		Type DatabaseType `mapstructure:"type" json:"type,omitempty" yaml:"type"`
+		DSN        string       `mapstructure:"dsn" json:"dsn,omitempty" yaml:"dsn"`
+		Type       DatabaseType `mapstructure:"type" json:"type,omitempty" yaml:"type"`
+		LogQueries bool         `mapstructure:"log_queries" json:"log_queries,omitempty"`
 	} `mapstructure:"database" json:"database,omitempty" yaml:"database"`
 
 	Domain string `json:"domain,omitempty"`

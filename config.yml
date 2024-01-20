@@ -1,6 +1,12 @@
+log: debug
+
 ssh:
   port: 2222
 
-
 http:
   port: 4200
+  domain: http://localhost:4200
+  database:
+    type: psql
+    dsn: postgres://sdump:sdump@localhost:3432/sdump?sslmode=disable
+    log_queries: true

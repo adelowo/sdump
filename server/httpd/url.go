@@ -24,7 +24,7 @@ func (u *urlHandler) create(w http.ResponseWriter, r *http.Request) {
 
 	ctx := r.Context()
 
-	endpoint := new(sdump.URLEndpoint)
+	endpoint := sdump.NewURLEndpoint()
 
 	if err := u.urlRepo.Create(ctx, endpoint); err != nil {
 		logger.WithError(err).Error("could not create url endpoint")
