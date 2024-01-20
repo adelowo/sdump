@@ -9,6 +9,7 @@ import (
 	"github.com/adelowo/sdump/config"
 	"github.com/adelowo/sdump/datastore/postgres"
 	"github.com/adelowo/sdump/server/httpd"
+	"github.com/r3labs/sse/v2"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -50,7 +51,10 @@ func createHTTPCommand(cmd *cobra.Command, cfg *config.Config) {
 			logger := logrus.WithField("host", hostName).
 				WithField("module", "http.server")
 
-			httpServer := httpd.New(*cfg, urlStore, ingestStore, logger)
+			sseServer := sse.New()
+
+			httpServer := httpd.New(*cfg, urlStore, ingestStore,
+				logger, sseServer)
 
 			go func() {
 				logger.Debug("starting HTTP server")
@@ -68,6 +72,8 @@ func createHTTPCommand(cmd *cobra.Command, cfg *config.Config) {
 			if err := httpServer.Shutdown(context.Background()); err != nil {
 				logger.WithError(err).Error("could not shut down http server")
 			}
+
+			sseServer.Close()
 
 			return nil
 		},

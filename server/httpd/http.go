@@ -8,6 +8,7 @@ import (
 	"github.com/adelowo/sdump/config"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/r3labs/sse/v2"
 	"github.com/sirupsen/logrus"
 )
 
@@ -15,9 +16,10 @@ func New(cfg config.Config,
 	urlRepo sdump.URLRepository,
 	ingestRepo sdump.IngestRepository,
 	logger *logrus.Entry,
+	sseServer *sse.Server,
 ) *http.Server {
 	return &http.Server{
-		Handler: buildRoutes(cfg, logger, urlRepo, ingestRepo),
+		Handler: buildRoutes(cfg, logger, urlRepo, ingestRepo, sseServer),
 		Addr:    fmt.Sprintf(":%d", cfg.HTTP.Port),
 	}
 }
@@ -26,6 +28,7 @@ func buildRoutes(cfg config.Config,
 	logger *logrus.Entry,
 	urlRepo sdump.URLRepository,
 	ingestRepo sdump.IngestRepository,
+	sseServer *sse.Server,
 ) http.Handler {
 	router := chi.NewRouter()
 
@@ -38,10 +41,12 @@ func buildRoutes(cfg config.Config,
 		urlRepo:    urlRepo,
 		logger:     logger,
 		ingestRepo: ingestRepo,
+		sseServer:  sseServer,
 	}
 
 	router.Post("/", urlHandler.create)
 	router.Post("/{reference}", urlHandler.ingest)
+	router.Get("/events", sseServer.ServeHTTP)
 
 	return router
 }

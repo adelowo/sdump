@@ -2,6 +2,7 @@ package sdump
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -32,6 +33,8 @@ type URLEndpoint struct {
 
 	bun.BaseModel `bun:"table:urls"`
 }
+
+func (u *URLEndpoint) PubChannel() string { return fmt.Sprintf("messages.%s", u.Reference) }
 
 func NewURLEndpoint() *URLEndpoint {
 	return &URLEndpoint{

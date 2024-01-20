@@ -1,6 +1,8 @@
 package httpd
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -12,6 +14,7 @@ import (
 	"github.com/adelowo/sdump/internal/util"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
+	"github.com/r3labs/sse/v2"
 	"github.com/sirupsen/logrus"
 )
 
@@ -20,6 +23,7 @@ type urlHandler struct {
 	urlRepo    sdump.URLRepository
 	ingestRepo sdump.IngestRepository
 	cfg        config.Config
+	sseServer  *sse.Server
 }
 
 func (u *urlHandler) create(w http.ResponseWriter, r *http.Request) {
@@ -39,6 +43,10 @@ func (u *urlHandler) create(w http.ResponseWriter, r *http.Request) {
 			"an error occurred while generating endpoint"))
 		return
 	}
+
+	go func() {
+		_ = u.sseServer.CreateStream(endpoint.PubChannel())
+	}()
 
 	_ = render.Render(w, r, &createdURLEndpointResponse{
 		APIStatus: newAPIStatus(http.StatusOK, "created url endpoint"),
@@ -109,6 +117,30 @@ func (u *urlHandler) ingest(w http.ResponseWriter, r *http.Request) {
 			"an error occurred while ingesting request"))
 		return
 	}
+
+	go func() {
+		if !u.sseServer.StreamExists(endpoint.PubChannel()) {
+			_ = u.sseServer.CreateStream(endpoint.PubChannel())
+		}
+
+		b := new(bytes.Buffer)
+
+		var sseEvent struct {
+			Request sdump.RequestDefinition `json:"request"`
+		}
+
+		sseEvent.Request = ingestedRequest.Request
+
+		if err := json.NewEncoder(b).Encode(&sseEvent); err != nil {
+			logger.WithError(err).Error("could not format SSE event")
+			return
+		}
+
+		u.sseServer.Publish(endpoint.PubChannel(), &sse.Event{
+			ID:   []byte(ingestedRequest.ID.String()),
+			Data: b.Bytes(),
+		})
+	}()
 
 	_ = render.Render(w, r, newAPIStatus(http.StatusAccepted,
 		"Request ingested"))
