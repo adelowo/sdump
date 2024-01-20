@@ -38,6 +38,7 @@ func buildRoutes(cfg config.Config,
 	}
 
 	router.Post("/", urlHandler.create)
+	router.Post("/{reference}", urlHandler.ingest)
 
 	return router
 }
