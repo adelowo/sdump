@@ -40,6 +40,12 @@ func TestURLHandler(t *testing.T) {
 		name               string
 		mockFn             func(urlRepo *mocks.MockURLRepository)
 		expectedStatusCode int
+
+		// sometimes data changes in the response, if this
+		// field is set to true, we will skip matching golden files
+		// technically it can be reworked to provide an implementation that never
+		// changes during tests but I can always come back to taht
+		hasDynamicData bool
 	}{
 		{
 			name: "could not create url",
@@ -48,6 +54,15 @@ func TestURLHandler(t *testing.T) {
 					Times(1).Return(errors.New("could not create dump"))
 			},
 			expectedStatusCode: http.StatusInternalServerError,
+		},
+		{
+			name: "url was created",
+			mockFn: func(urlRepo *mocks.MockURLRepository) {
+				urlRepo.EXPECT().Create(gomock.Any(), gomock.Any()).
+					Times(1).Return(nil)
+			},
+			expectedStatusCode: http.StatusOK,
+			hasDynamicData:     true,
 		},
 	}
 
@@ -78,7 +93,9 @@ func TestURLHandler(t *testing.T) {
 
 			require.Equal(t, v.expectedStatusCode, recorder.Result().StatusCode)
 
-			verifyMatch(t, recorder)
+			if !v.hasDynamicData {
+				verifyMatch(t, recorder)
+			}
 		})
 	}
 }
