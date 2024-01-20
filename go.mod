@@ -24,6 +24,7 @@ require (
 	github.com/uptrace/bun/driver/pgdriver v1.1.17
 	github.com/uptrace/bun/extra/bundebug v1.1.17
 	github.com/uptrace/bun/extra/bunotel v1.1.17
+	go.uber.org/mock v0.4.0
 	golang.org/x/term v0.16.0
 )
 

@@ -1,10 +1,8 @@
 package postgres
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"testing"
 
@@ -12,7 +10,6 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
-	"github.com/sebdah/goldie/v2"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -92,15 +89,4 @@ func setupDatabase(t *testing.T) (*bun.DB, func()) {
 		err := dbContainer.Terminate(context.Background())
 		require.NoError(t, err)
 	}
-}
-
-func verifyMatch(t *testing.T, v interface{}) {
-	g := goldie.New(t, goldie.WithFixtureDir("./testdata"))
-
-	b := new(bytes.Buffer)
-
-	err := json.NewEncoder(b).Encode(v)
-	require.NoError(t, err)
-
-	g.Assert(t, t.Name(), b.Bytes())
 }
