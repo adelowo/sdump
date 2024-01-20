@@ -9,6 +9,14 @@ import (
 	"github.com/uptrace/bun"
 )
 
+type appError string
+
+func (a appError) Error() string { return string(a) }
+
+const (
+	ErrURLEndpointNotFound = appError("endpoint not found")
+)
+
 type URLEndpointMetadata struct{}
 
 type URLEndpoint struct {
@@ -32,6 +40,12 @@ func NewURLEndpoint() *URLEndpoint {
 	}
 }
 
+type FindURLOptions struct {
+	Reference string
+	ID        uuid.UUID
+}
+
 type URLRepository interface {
 	Create(context.Context, *URLEndpoint) error
+	Get(context.Context, *FindURLOptions) (*URLEndpoint, error)
 }
