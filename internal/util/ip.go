@@ -31,5 +31,10 @@ func GetIP(r *http.Request) net.IP {
 		return net.ParseIP(ip)
 	}
 
-	return net.ParseIP(r.RemoteAddr)
+	h, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return net.IP{}
+	}
+
+	return net.ParseIP(h)
 }
