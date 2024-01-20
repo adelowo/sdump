@@ -1,0 +1,15 @@
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+CREATE TABLE urls (
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    reference VARCHAR (200) NOT NULL,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+
+    metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
+
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP WITH TIME ZONE
+);
+
+
