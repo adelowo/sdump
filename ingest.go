@@ -14,11 +14,13 @@ type RequestDefinition struct {
 	Body      string      `mapstructure:"body" json:"body,omitempty"`
 	Query     string      `json:"query,omitempty"`
 	Headers   http.Header `json:"headers,omitempty"`
-	IPAddress net.IP      `json:"ip_address" bson:"ip_address"`
+	IPAddress net.IP      `json:"ip_address,omitempty" bson:"ip_address"`
+	Size      int64       `json:"size,omitempty"`
 }
 
 type IngestHTTPRequest struct {
 	ID      uuid.UUID         `bun:"type:uuid,default:uuid_generate_v4()" json:"id,omitempty" mapstructure:"id"`
+	UrlID   uuid.UUID         `json:"url_id,omitempty"`
 	Request RequestDefinition `json:"request,omitempty"`
 
 	// No need to store content type, it will always be application/json

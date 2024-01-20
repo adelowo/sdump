@@ -40,6 +40,7 @@ func createHTTPCommand(cmd *cobra.Command, cfg *config.Config) {
 			}
 
 			urlStore := postgres.NewURLRepositoryTable(db)
+			ingestStore := postgres.NewIngestRepository(db)
 
 			hostName, err := os.Hostname()
 			if err != nil {
@@ -49,7 +50,7 @@ func createHTTPCommand(cmd *cobra.Command, cfg *config.Config) {
 			logger := logrus.WithField("host", hostName).
 				WithField("module", "http.server")
 
-			httpServer := httpd.New(*cfg, urlStore, logger)
+			httpServer := httpd.New(*cfg, urlStore, ingestStore, logger)
 
 			go func() {
 				logger.Debug("starting HTTP server")

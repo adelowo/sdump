@@ -1,6 +1,7 @@
 package httpd
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -9,14 +10,16 @@ import (
 	"github.com/adelowo/sdump"
 	"github.com/adelowo/sdump/config"
 	"github.com/adelowo/sdump/internal/util"
+	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
 	"github.com/sirupsen/logrus"
 )
 
 type urlHandler struct {
-	logger  *logrus.Entry
-	urlRepo sdump.URLRepository
-	cfg     config.Config
+	logger     *logrus.Entry
+	urlRepo    sdump.URLRepository
+	ingestRepo sdump.IngestRepository
+	cfg        config.Config
 }
 
 func (u *urlHandler) create(w http.ResponseWriter, r *http.Request) {
@@ -53,27 +56,60 @@ func (u *urlHandler) create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (u *urlHandler) ingest(w http.ResponseWriter, r *http.Request) {
+	reference := chi.URLParam(r, "reference")
+
 	logger := u.logger.WithField("request_id", retrieveRequestID(r)).
-		WithField("method", "urlHandler.ingest")
+		WithField("method", "urlHandler.ingest").
+		WithField("reference", reference)
 
 	logger.Debug("Ingesting http request")
 
+	ctx := r.Context()
+
+	endpoint, err := u.urlRepo.Get(ctx, &sdump.FindURLOptions{
+		Reference: reference,
+	})
+	if errors.Is(err, sdump.ErrURLEndpointNotFound) {
+		_ = render.Render(w, r, newAPIError(http.StatusNotFound,
+			"Dump url does not exist"))
+		return
+	}
+
+	if err != nil {
+		logger.WithError(err).Error("could not find dump url by reference")
+		_ = render.Render(w, r, newAPIError(http.StatusInternalServerError,
+			"an error occurred while ingesting HTTP request"))
+		return
+	}
+
 	s := &strings.Builder{}
 
-	if _, err := io.Copy(s, r.Body); err != nil {
+	size, err := io.Copy(s, r.Body)
+	if err != nil {
 		logger.WithError(err).Error("could not copy request body")
-		_ = render.Render(w, r, newAPIError(http.StatusInternalServerError, "could not copy request body"))
+		_ = render.Render(w, r, newAPIError(http.StatusInternalServerError,
+			"could not copy request body"))
 		return
 	}
 
 	ingestedRequest := &sdump.IngestHTTPRequest{
+		UrlID: endpoint.ID,
 		Request: sdump.RequestDefinition{
 			Body:      s.String(),
 			Query:     r.URL.Query().Encode(),
 			Headers:   r.Header,
 			IPAddress: util.GetIP(r),
+			Size:      size,
 		},
 	}
 
-	ctx := r.Context()
+	if err := u.ingestRepo.Create(ctx, ingestedRequest); err != nil {
+		logger.WithError(err).Error("could not ingest request")
+		_ = render.Render(w, r, newAPIError(http.StatusInternalServerError,
+			"an error occurred while ingesting request"))
+		return
+	}
+
+	_ = render.Render(w, r, newAPIStatus(http.StatusAccepted,
+		"Request ingested"))
 }

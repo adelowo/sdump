@@ -13,10 +13,11 @@ import (
 
 func New(cfg config.Config,
 	urlRepo sdump.URLRepository,
+	ingestRepo sdump.IngestRepository,
 	logger *logrus.Entry,
 ) *http.Server {
 	return &http.Server{
-		Handler: buildRoutes(cfg, logger, urlRepo),
+		Handler: buildRoutes(cfg, logger, urlRepo, ingestRepo),
 		Addr:    fmt.Sprintf(":%d", cfg.HTTP.Port),
 	}
 }
@@ -24,6 +25,7 @@ func New(cfg config.Config,
 func buildRoutes(cfg config.Config,
 	logger *logrus.Entry,
 	urlRepo sdump.URLRepository,
+	ingestRepo sdump.IngestRepository,
 ) http.Handler {
 	router := chi.NewRouter()
 
@@ -32,9 +34,10 @@ func buildRoutes(cfg config.Config,
 	router.Use(writeRequestIDHeader)
 
 	urlHandler := &urlHandler{
-		cfg:     cfg,
-		urlRepo: urlRepo,
-		logger:  logger,
+		cfg:        cfg,
+		urlRepo:    urlRepo,
+		logger:     logger,
+		ingestRepo: ingestRepo,
 	}
 
 	router.Post("/", urlHandler.create)
