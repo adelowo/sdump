@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/adelowo/sdump/config"
-	"github.com/adelowo/sdump/internal/tui"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -71,21 +70,14 @@ func Execute() error {
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			return initializeConfig(cfg)
 		},
-		RunE: func(_ *cobra.Command, _ []string) error {
-			t := tui.New(cfg)
-
-			if _, err := t.Run(); err != nil {
-				return err
-			}
-
-			return nil
-		},
 	}
 
 	rootCmd.SetVersionTemplate(
 		fmt.Sprintf("Version: %v\nCommit: %v\nDate: %v\n", Version, Commit, Date))
 
 	rootCmd.Flags().StringP("config", "c", defaultConfigFilePath, "Config file. This is in YAML")
+
+	createHTTPCommand(rootCmd, cfg)
 
 	return rootCmd.Execute()
 }

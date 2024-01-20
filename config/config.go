@@ -30,9 +30,12 @@ type HTTPConfig struct {
 		DSN  string       `mapstructure:"dsn" json:"dsn,omitempty" yaml:"dsn"`
 		Type DatabaseType `mapstructure:"type" json:"type,omitempty" yaml:"type"`
 	} `mapstructure:"database" json:"database,omitempty" yaml:"database"`
+
+	Domain string `json:"domain,omitempty"`
 }
 
 type Config struct {
 	SSH  SSHConfig  `mapstructure:"ssh" json:"ssh,omitempty" yaml:"ssh"`
 	HTTP HTTPConfig `json:"http,omitempty" mapstructure:"http"`
+	Log  string     `mapstructure:"log" json:"log,omitempty"`
 }

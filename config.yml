@@ -1,3 +1,6 @@
 ssh:
   port: 2222
 
+
+http:
+  port: 4200

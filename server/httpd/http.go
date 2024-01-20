@@ -4,24 +4,40 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/adelowo/sdump"
 	"github.com/adelowo/sdump/config"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/sirupsen/logrus"
 )
 
-func New(cfg config.Config) *http.Server {
+func New(cfg config.Config,
+	urlRepo sdump.URLRepository,
+	logger *logrus.Entry,
+) *http.Server {
 	return &http.Server{
-		Handler: buildRoutes(),
+		Handler: buildRoutes(cfg, logger, urlRepo),
 		Addr:    fmt.Sprintf(":%d", cfg.HTTP.Port),
 	}
 }
 
-func buildRoutes() http.Handler {
+func buildRoutes(cfg config.Config,
+	logger *logrus.Entry,
+	urlRepo sdump.URLRepository,
+) http.Handler {
 	router := chi.NewRouter()
 
 	router.Use(middleware.AllowContentType("application/json"))
 	router.Use(middleware.RequestID)
 	router.Use(writeRequestIDHeader)
+
+	urlHandler := &urlHandler{
+		cfg:     cfg,
+		urlRepo: urlRepo,
+		logger:  logger,
+	}
+
+	router.Post("/", urlHandler.create)
 
 	return router
 }
