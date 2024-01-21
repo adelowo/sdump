@@ -12,6 +12,7 @@ require (
 	github.com/go-testfixtures/testfixtures/v3 v3.9.0
 	github.com/golang-migrate/migrate/v4 v4.17.0
 	github.com/google/uuid v1.4.0
+	github.com/r3labs/sse/v2 v2.10.0
 	github.com/rs/xid v1.5.0
 	github.com/sebdah/goldie/v2 v2.5.3
 	github.com/sirupsen/logrus v1.9.3
@@ -91,7 +92,6 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/power-devops/perfstat v0.0.0-20210106213030-5aafc221ea8c // indirect
-	github.com/r3labs/sse/v2 v2.10.0 // indirect
 	github.com/rivo/uniseg v0.4.4 // indirect
 	github.com/sagikazarmark/locafero v0.4.0 // indirect
 	github.com/sagikazarmark/slog-shim v0.1.0 // indirect

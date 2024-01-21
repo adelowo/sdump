@@ -14,6 +14,7 @@ import (
 	"github.com/adelowo/sdump/config"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/spinner"
+	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -33,14 +34,26 @@ type model struct {
 	requestList list.Model
 	httpClient  *http.Client
 
-	sseClient           *sse.Client
-	receiveChan         chan item
-	detailedRequestView viewport.Model
-
+	sseClient                 *sse.Client
+	receiveChan               chan item
+	detailedRequestView       viewport.Model
 	detailedRequestViewBuffer *bytes.Buffer
+
+	headersTable table.Model
 }
 
 func initialModel(cfg *config.Config) model {
+	columns := []table.Column{
+		{
+			Title: "Header",
+			Width: 50,
+		},
+		{
+			Title: "Value",
+			Width: 50,
+		},
+	}
+
 	m := model{
 		title: "Sdump",
 		spinner: spinner.New(
@@ -56,6 +69,8 @@ func initialModel(cfg *config.Config) model {
 		detailedRequestViewBuffer: bytes.NewBuffer(nil),
 		sseClient:                 sse.NewClient(fmt.Sprintf("%s/events", cfg.HTTP.Domain)),
 		receiveChan:               make(chan item),
+		headersTable: table.New(table.WithColumns(columns),
+			table.WithFocused(true), table.WithHeight(30)),
 	}
 
 	m.requestList.Title = "Incoming requests"
@@ -167,12 +182,44 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		m.requestList.InsertItem(0, msg.item)
 
-		if err := highlightCode(m.detailedRequestViewBuffer, msg.item.Request.Body); err != nil {
+		item := m.requestList.SelectedItem().(item)
+		// if !ok {
+		// 	return lipgloss.JoinHorizontal(lipgloss.Top,
+		// 		lipgloss.NewStyle().Margin(1, 4).Render(m.requestList.View()),
+		// 		lipgloss.NewStyle().Padding(1, 4).Render(m.detailedRequestView.View()))
+		// }
+
+		if err := highlightCode(m.detailedRequestViewBuffer, item.Request.Body); err != nil {
 			panic(err)
 		}
 
 		m.detailedRequestView.SetContent(m.detailedRequestViewBuffer.String())
 		m.detailedRequestViewBuffer.Reset()
+
+		rows := []table.Row{}
+
+		for k, v := range item.Request.Headers {
+			if len(v) == 0 {
+				continue
+			}
+			rows = append(rows, table.Row{
+				k, v[0],
+			})
+		}
+
+		m.headersTable.SetRows(rows)
+
+		s := table.DefaultStyles()
+		s.Header = s.Header.
+			BorderStyle(lipgloss.NormalBorder()).
+			BorderForeground(lipgloss.Color("240")).
+			BorderBottom(true).
+			Bold(false)
+		s.Selected = s.Selected.
+			Foreground(lipgloss.Color("229")).
+			Background(lipgloss.Color("57")).
+			Bold(false)
+		m.headersTable.SetStyles(s)
 
 		return m, m.waitForNextItem
 
@@ -234,5 +281,6 @@ Waiting for requests on %s .. Ctrl-j/k or arrow up and down to navigate requests
 func (m model) makeTable() string {
 	return lipgloss.JoinHorizontal(lipgloss.Top,
 		lipgloss.NewStyle().Margin(1, 4).Render(m.requestList.View()),
-		lipgloss.NewStyle().Padding(1, 4).Render(m.detailedRequestView.View()))
+		fmt.Sprintf("%s \n \n %s", m.headersTable.View(),
+			lipgloss.NewStyle().Padding(0, 4).Render(m.detailedRequestView.View())))
 }
