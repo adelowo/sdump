@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/adelowo/sdump/config"
+	"github.com/atotto/clipboard"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/table"
@@ -226,6 +227,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyMsg:
 		switch msg.Type {
+		case tea.KeyCtrlY:
+
+			clipboard.WriteAll(m.dumpURL.String())
+
+			return m, cmd
 		case tea.KeyCtrlC:
 			return m, tea.Quit
 
@@ -330,7 +336,7 @@ func (m model) View() string {
 		lipgloss.JoinVertical(lipgloss.Center,
 			boldenString("Inspecting incoming HTTP requests", true),
 			boldenString(fmt.Sprintf(`
-Waiting for requests on %s .. Ctrl-j/k or arrow up and down to navigate requests`, m.dumpURL), true),
+Waiting for requests on %s .. Press Ctrl-y to copy the url. You can use Ctrl-j/k or arrow up and down to navigate requests`, m.dumpURL), true),
 		))
 
 	return m.spinner.View() + browserHeader + strings.Repeat("\n", 5) + m.makeTable()
