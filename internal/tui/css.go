@@ -16,7 +16,6 @@ var (
 	// blackColor   = lipgloss.Color("#000000")
 	// orangeColor  = lipgloss.Color("#D3A347")
 	feintColor = lipgloss.AdaptiveColor{Light: "#333333", Dark: "#888888"}
-	// irisColor    = lipgloss.Color("#5D5FEF")
 	// fuschiaColor   = lipgloss.Color("#EF5DA8")
 	faintBuleColor = lipgloss.Color("#428BCA")
 
