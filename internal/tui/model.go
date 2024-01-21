@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/adelowo/sdump"
 	"github.com/adelowo/sdump/config"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/spinner"
@@ -37,6 +36,8 @@ type model struct {
 	sseClient           *sse.Client
 	receiveChan         chan item
 	detailedRequestView viewport.Model
+
+	detailedRequestViewBuffer *bytes.Buffer
 }
 
 func initialModel(cfg *config.Config) model {
@@ -50,14 +51,16 @@ func initialModel(cfg *config.Config) model {
 		httpClient: &http.Client{
 			Timeout: time.Minute,
 		},
-		requestList:         list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0),
-		detailedRequestView: viewport.New(100, 50),
-		sseClient:           sse.NewClient(fmt.Sprintf("%s/events", cfg.HTTP.Domain)),
-		receiveChan:         make(chan item),
+		requestList:               list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0),
+		detailedRequestView:       viewport.New(100, 50),
+		detailedRequestViewBuffer: bytes.NewBuffer(nil),
+		sseClient:                 sse.NewClient(fmt.Sprintf("%s/events", cfg.HTTP.Domain)),
+		receiveChan:               make(chan item),
 	}
 
 	m.requestList.Title = "Incoming requests"
 	m.requestList.SetShowTitle(true)
+	m.requestList.SetFilteringEnabled(false)
 
 	return m
 }
@@ -81,19 +84,13 @@ func (m model) Init() tea.Cmd {
 
 func (m model) listenForNextItem() tea.Msg {
 	err := m.sseClient.Subscribe(m.pubChannel, func(msg *sse.Event) {
-		var sseEvent struct {
-			Request sdump.RequestDefinition `json:"request"`
-			ID      string                  `json:"id"`
-		}
+		var i item
 
-		if err := json.NewDecoder(bytes.NewBuffer(msg.Data)).Decode(&sseEvent); err != nil {
+		if err := json.NewDecoder(bytes.NewBuffer(msg.Data)).Decode(&i); err != nil {
 			panic(err)
 		}
 
-		m.receiveChan <- item{
-			ID:      sseEvent.ID,
-			Request: sseEvent.Request,
-		}
+		m.receiveChan <- i
 	})
 	if err != nil {
 		panic(err)
@@ -168,9 +165,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case ItemMsg:
 
-		m.requestList.SetItems([]list.Item{
-			msg.item,
-		})
+		m.requestList.InsertItem(0, msg.item)
+
+		if err := highlightCode(m.detailedRequestViewBuffer, msg.item.Request.Body); err != nil {
+			panic(err)
+		}
+
+		m.detailedRequestView.SetContent(m.detailedRequestViewBuffer.String())
+		m.detailedRequestViewBuffer.Reset()
 
 		return m, m.waitForNextItem
 

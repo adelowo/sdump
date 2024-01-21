@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/adelowo/sdump"
 	"github.com/adelowo/sdump/config"
@@ -131,12 +132,14 @@ func (u *urlHandler) ingest(w http.ResponseWriter, r *http.Request) {
 		b := new(bytes.Buffer)
 
 		var sseEvent struct {
-			Request sdump.RequestDefinition `json:"request"`
-			ID      string                  `json:"id"`
+			Request   sdump.RequestDefinition `json:"request"`
+			ID        string                  `json:"id"`
+			CreatedAt time.Time               `json:"created_at,omitempty"`
 		}
 
 		sseEvent.Request = ingestedRequest.Request
 		sseEvent.ID = ingestedRequest.ID.String()
+		sseEvent.CreatedAt = ingestedRequest.CreatedAt
 
 		if err := json.NewEncoder(b).Encode(&sseEvent); err != nil {
 			logger.WithError(err).Error("could not format SSE event")
