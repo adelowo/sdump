@@ -1,10 +1,22 @@
 package tui
 
 import (
+	"fmt"
 	"net"
 	"net/http"
 	"time"
+
+	"github.com/adelowo/sdump"
 )
+
+type DumpURLMsg struct {
+	URL        string `json:"url,omitempty"`
+	SSEChannel string `json:"sse_channel,omitempty"`
+}
+
+type ItemMsg struct {
+	item item
+}
 
 type IncomingHTTPRequest struct {
 	Method    string    `json:"method,omitempty"`
@@ -22,9 +34,10 @@ type incomingHTTPRequestMsg struct {
 }
 
 type item struct {
-	title, desc, ip string
+	ID      string
+	Request sdump.RequestDefinition
 }
 
-func (i item) Title() string       { return i.title }
-func (i item) Description() string { return i.desc }
-func (i item) FilterValue() string { return i.title }
+func (i item) Title() string       { return fmt.Sprintf("%s    %s", i.ID, i.Request.IPAddress) }
+func (i item) Description() string { return "Here is my long ass description" }
+func (i item) FilterValue() string { return i.ID }

@@ -11,12 +11,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/adelowo/sdump"
 	"github.com/adelowo/sdump/config"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/r3labs/sse/v2"
 	"golang.org/x/term"
 )
 
@@ -24,13 +26,16 @@ type model struct {
 	title   string
 	spinner spinner.Model
 
-	cfg     *config.Config
-	dumpURL *url.URL
-	err     error
+	cfg        *config.Config
+	dumpURL    *url.URL
+	pubChannel string
+	err        error
 
 	requestList list.Model
 	httpClient  *http.Client
 
+	sseClient           *sse.Client
+	receiveChan         chan item
 	detailedRequestView viewport.Model
 }
 
@@ -45,37 +50,14 @@ func initialModel(cfg *config.Config) model {
 		httpClient: &http.Client{
 			Timeout: time.Minute,
 		},
-		requestList: list.New([]list.Item{
-			item{
-				title: "oops",
-				desc:  "oops oops oops oops",
-				ip:    "0.0.0.0",
-			},
-			item{
-				title: "omo",
-				desc:  "omo oops oops oops",
-				ip:    "0.0.0.0",
-			},
-		}, list.NewDefaultDelegate(), 0, 0),
+		requestList:         list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0),
 		detailedRequestView: viewport.New(100, 50),
+		sseClient:           sse.NewClient(fmt.Sprintf("%s/events", cfg.HTTP.Domain)),
+		receiveChan:         make(chan item),
 	}
 
 	m.requestList.Title = "Incoming requests"
 	m.requestList.SetShowTitle(true)
-
-	b := new(bytes.Buffer)
-
-	err := highlightCode(b, `
-		{"name": "lanre"}
-	`)
-	// TODO: handle this probably. TUI design is the most important
-	// bit right now
-	// Replace all panics with showing on the TUI instead
-	if err != nil {
-		panic(err)
-	}
-
-	m.detailedRequestView.SetContent(b.String())
 
 	return m
 }
@@ -97,6 +79,33 @@ func (m model) Init() tea.Cmd {
 		m.createEndpoint)
 }
 
+func (m model) listenForNextItem() tea.Msg {
+	err := m.sseClient.Subscribe(m.pubChannel, func(msg *sse.Event) {
+		var sseEvent struct {
+			Request sdump.RequestDefinition `json:"request"`
+			ID      string                  `json:"id"`
+		}
+
+		if err := json.NewDecoder(bytes.NewBuffer(msg.Data)).Decode(&sseEvent); err != nil {
+			panic(err)
+		}
+
+		m.receiveChan <- item{
+			ID:      sseEvent.ID,
+			Request: sseEvent.Request,
+		}
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	return nil
+}
+
+func (m model) waitForNextItem() tea.Msg {
+	return ItemMsg{item: <-m.receiveChan}
+}
+
 func (m model) createEndpoint() tea.Msg {
 	// err can be safely ignored
 	req, _ := http.NewRequest(http.MethodPost,
@@ -116,6 +125,9 @@ func (m model) createEndpoint() tea.Msg {
 		URL struct {
 			HumanReadableEndpoint string `json:"human_readable_endpoint,omitempty"`
 		} `json:"url,omitempty"`
+		SSE struct {
+			Channel string `json:"channel,omitempty"`
+		} `json:"sse,omitempty"`
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
@@ -123,7 +135,8 @@ func (m model) createEndpoint() tea.Msg {
 	}
 
 	return DumpURLMsg{
-		URL: response.URL.HumanReadableEndpoint,
+		URL:        response.URL.HumanReadableEndpoint,
+		SSEChannel: response.SSE.Channel,
 	}
 }
 
@@ -148,6 +161,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.err = err
 			return m, cmd
 		}
+
+		m.pubChannel = msg.SSEChannel
+		go m.listenForNextItem()
+		return m, m.waitForNextItem
+
+	case ItemMsg:
+
+		m.requestList.SetItems([]list.Item{
+			msg.item,
+		})
+
+		return m, m.waitForNextItem
 
 	case tea.WindowSizeMsg:
 

@@ -50,6 +50,11 @@ func (u *urlHandler) create(w http.ResponseWriter, r *http.Request) {
 
 	_ = render.Render(w, r, &createdURLEndpointResponse{
 		APIStatus: newAPIStatus(http.StatusOK, "created url endpoint"),
+		SSE: struct {
+			Channel string "json:\"channel,omitempty\""
+		}{
+			Channel: endpoint.PubChannel(),
+		},
 		URL: struct {
 			FQDN                  string "json:\"fqdn,omitempty\""
 			Identifier            string "json:\"identifier,omitempty\""
@@ -127,9 +132,11 @@ func (u *urlHandler) ingest(w http.ResponseWriter, r *http.Request) {
 
 		var sseEvent struct {
 			Request sdump.RequestDefinition `json:"request"`
+			ID      string                  `json:"id"`
 		}
 
 		sseEvent.Request = ingestedRequest.Request
+		sseEvent.ID = ingestedRequest.ID.String()
 
 		if err := json.NewEncoder(b).Encode(&sseEvent); err != nil {
 			logger.WithError(err).Error("could not format SSE event")
