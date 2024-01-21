@@ -2,13 +2,16 @@ package tui
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/adelowo/sdump/config"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/viewport"
@@ -21,23 +24,27 @@ type model struct {
 	title   string
 	spinner spinner.Model
 
+	cfg     *config.Config
 	dumpURL *url.URL
 	err     error
 
-	// requestList is shown on the LHS side of the TUI
 	requestList list.Model
-	// viewport because it shouldn't be editable.
-	// A textarea is editable and does not work for us here
+	httpClient  *http.Client
+
 	detailedRequestView viewport.Model
 }
 
-func initialModel() model {
+func initialModel(cfg *config.Config) model {
 	m := model{
 		title: "Sdump",
 		spinner: spinner.New(
 			spinner.WithSpinner(spinner.Line),
 			spinner.WithStyle(lipgloss.NewStyle().Foreground(lipgloss.Color("205"))),
 		),
+		cfg: cfg,
+		httpClient: &http.Client{
+			Timeout: time.Minute,
+		},
 		requestList: list.New([]list.Item{
 			item{
 				title: "oops",
@@ -63,6 +70,7 @@ func initialModel() model {
 	`)
 	// TODO: handle this probably. TUI design is the most important
 	// bit right now
+	// Replace all panics with showing on the TUI instead
 	if err != nil {
 		panic(err)
 	}
@@ -85,12 +93,38 @@ func (m model) Init() tea.Cmd {
 	m.detailedRequestView.Width = width
 	m.detailedRequestView.Height = height
 
-	return tea.Batch(m.spinner.Tick, func() tea.Msg {
-		time.Sleep(time.Second * 2)
-		return DumpURLMsg{
-			URL: "https://lanre.wtf",
-		}
-	})
+	return tea.Batch(m.spinner.Tick,
+		m.createEndpoint)
+}
+
+func (m model) createEndpoint() tea.Msg {
+	// err can be safely ignored
+	req, _ := http.NewRequest(http.MethodPost,
+		m.cfg.HTTP.Domain,
+		strings.NewReader("{}"))
+
+	req.Header.Add("Content-Type", "application/json")
+
+	resp, err := m.httpClient.Do(req)
+	if err != nil {
+		panic(err)
+	}
+
+	defer resp.Body.Close()
+
+	var response struct {
+		URL struct {
+			HumanReadableEndpoint string `json:"human_readable_endpoint,omitempty"`
+		} `json:"url,omitempty"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		panic(err)
+	}
+
+	return DumpURLMsg{
+		URL: response.URL.HumanReadableEndpoint,
+	}
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -164,7 +198,7 @@ func (m model) View() string {
 		lipgloss.JoinVertical(lipgloss.Center,
 			boldenString("Inspecting incoming HTTP requests", true),
 			boldenString(fmt.Sprintf(`
-Waiting for requests on %s.. Ctrl-j/k or arrow up and down to navigate requests`, m.dumpURL), true),
+Waiting for requests on %s .. Ctrl-j/k or arrow up and down to navigate requests`, m.dumpURL), true),
 		))
 
 	return m.spinner.View() + browserHeader + strings.Repeat("\n", 5) + m.makeTable()
