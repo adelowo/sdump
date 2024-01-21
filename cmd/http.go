@@ -16,8 +16,8 @@ import (
 
 func createHTTPCommand(cmd *cobra.Command, cfg *config.Config) {
 	command := &cobra.Command{
-		Use:  "http",
-		Long: "Start/run the HTTP server",
+		Use:   "http",
+		Short: "Start/run the HTTP server",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			sig := make(chan os.Signal, 1)
 

@@ -42,5 +42,8 @@ type createdURLEndpointResponse struct {
 		Identifier            string `json:"identifier,omitempty"`
 		HumanReadableEndpoint string `json:"human_readable_endpoint,omitempty"`
 	} `json:"url,omitempty"`
+	SSE struct {
+		Channel string `json:"channel,omitempty"`
+	} `json:"sse,omitempty"`
 	APIStatus
 }

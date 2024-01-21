@@ -78,6 +78,7 @@ func Execute() error {
 	rootCmd.Flags().StringP("config", "c", defaultConfigFilePath, "Config file. This is in YAML")
 
 	createHTTPCommand(rootCmd, cfg)
+	createSSHCommand(rootCmd, cfg)
 
 	return rootCmd.Execute()
 }

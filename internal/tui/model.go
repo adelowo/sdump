@@ -2,18 +2,22 @@ package tui
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/adelowo/sdump/config"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/r3labs/sse/v2"
 	"golang.org/x/term"
 )
 
@@ -21,53 +25,42 @@ type model struct {
 	title   string
 	spinner spinner.Model
 
-	dumpURL *url.URL
-	err     error
+	cfg        *config.Config
+	dumpURL    *url.URL
+	pubChannel string
+	err        error
 
-	// requestList is shown on the LHS side of the TUI
 	requestList list.Model
-	// viewport because it shouldn't be editable.
-	// A textarea is editable and does not work for us here
+	httpClient  *http.Client
+
+	sseClient           *sse.Client
+	receiveChan         chan item
 	detailedRequestView viewport.Model
+
+	detailedRequestViewBuffer *bytes.Buffer
 }
 
-func initialModel() model {
+func initialModel(cfg *config.Config) model {
 	m := model{
 		title: "Sdump",
 		spinner: spinner.New(
 			spinner.WithSpinner(spinner.Line),
 			spinner.WithStyle(lipgloss.NewStyle().Foreground(lipgloss.Color("205"))),
 		),
-		requestList: list.New([]list.Item{
-			item{
-				title: "oops",
-				desc:  "oops oops oops oops",
-				ip:    "0.0.0.0",
-			},
-			item{
-				title: "omo",
-				desc:  "omo oops oops oops",
-				ip:    "0.0.0.0",
-			},
-		}, list.NewDefaultDelegate(), 0, 0),
-		detailedRequestView: viewport.New(100, 50),
+		cfg: cfg,
+		httpClient: &http.Client{
+			Timeout: time.Minute,
+		},
+		requestList:               list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0),
+		detailedRequestView:       viewport.New(100, 50),
+		detailedRequestViewBuffer: bytes.NewBuffer(nil),
+		sseClient:                 sse.NewClient(fmt.Sprintf("%s/events", cfg.HTTP.Domain)),
+		receiveChan:               make(chan item),
 	}
 
 	m.requestList.Title = "Incoming requests"
 	m.requestList.SetShowTitle(true)
-
-	b := new(bytes.Buffer)
-
-	err := highlightCode(b, `
-		{"name": "lanre"}
-	`)
-	// TODO: handle this probably. TUI design is the most important
-	// bit right now
-	if err != nil {
-		panic(err)
-	}
-
-	m.detailedRequestView.SetContent(b.String())
+	m.requestList.SetFilteringEnabled(false)
 
 	return m
 }
@@ -85,12 +78,63 @@ func (m model) Init() tea.Cmd {
 	m.detailedRequestView.Width = width
 	m.detailedRequestView.Height = height
 
-	return tea.Batch(m.spinner.Tick, func() tea.Msg {
-		time.Sleep(time.Second * 2)
-		return DumpURLMsg{
-			URL: "https://lanre.wtf",
+	return tea.Batch(m.spinner.Tick,
+		m.createEndpoint)
+}
+
+func (m model) listenForNextItem() tea.Msg {
+	err := m.sseClient.Subscribe(m.pubChannel, func(msg *sse.Event) {
+		var i item
+
+		if err := json.NewDecoder(bytes.NewBuffer(msg.Data)).Decode(&i); err != nil {
+			panic(err)
 		}
+
+		m.receiveChan <- i
 	})
+	if err != nil {
+		panic(err)
+	}
+
+	return nil
+}
+
+func (m model) waitForNextItem() tea.Msg {
+	return ItemMsg{item: <-m.receiveChan}
+}
+
+func (m model) createEndpoint() tea.Msg {
+	// err can be safely ignored
+	req, _ := http.NewRequest(http.MethodPost,
+		m.cfg.HTTP.Domain,
+		strings.NewReader("{}"))
+
+	req.Header.Add("Content-Type", "application/json")
+
+	resp, err := m.httpClient.Do(req)
+	if err != nil {
+		panic(err)
+	}
+
+	defer resp.Body.Close()
+
+	var response struct {
+		URL struct {
+			HumanReadableEndpoint string `json:"human_readable_endpoint,omitempty"`
+		} `json:"url,omitempty"`
+		SSE struct {
+			Channel string `json:"channel,omitempty"`
+		} `json:"sse,omitempty"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		panic(err)
+	}
+
+	return DumpURLMsg{
+		URL:        response.URL.HumanReadableEndpoint,
+		SSEChannel: response.SSE.Channel,
+	}
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -114,6 +158,23 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.err = err
 			return m, cmd
 		}
+
+		m.pubChannel = msg.SSEChannel
+		go m.listenForNextItem()
+		return m, m.waitForNextItem
+
+	case ItemMsg:
+
+		m.requestList.InsertItem(0, msg.item)
+
+		if err := highlightCode(m.detailedRequestViewBuffer, msg.item.Request.Body); err != nil {
+			panic(err)
+		}
+
+		m.detailedRequestView.SetContent(m.detailedRequestViewBuffer.String())
+		m.detailedRequestViewBuffer.Reset()
+
+		return m, m.waitForNextItem
 
 	case tea.WindowSizeMsg:
 
@@ -164,7 +225,7 @@ func (m model) View() string {
 		lipgloss.JoinVertical(lipgloss.Center,
 			boldenString("Inspecting incoming HTTP requests", true),
 			boldenString(fmt.Sprintf(`
-Waiting for requests on %s.. Ctrl-j/k or arrow up and down to navigate requests`, m.dumpURL), true),
+Waiting for requests on %s .. Ctrl-j/k or arrow up and down to navigate requests`, m.dumpURL), true),
 		))
 
 	return m.spinner.View() + browserHeader + strings.Repeat("\n", 5) + m.makeTable()

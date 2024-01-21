@@ -1,30 +1,38 @@
 package tui
 
 import (
-	"net"
-	"net/http"
+	"fmt"
 	"time"
+
+	"github.com/adelowo/sdump"
 )
 
-type IncomingHTTPRequest struct {
-	Method    string    `json:"method,omitempty"`
-	ID        string    `json:"id,omitempty"`
-	IPAddress net.IP    `json:"ip_address,omitempty"`
-	CreatedAt time.Time `json:"created_at,omitempty"`
-
-	Headers http.Header `json:"headers,omitempty"`
+type DumpURLMsg struct {
+	URL        string `json:"url,omitempty"`
+	SSEChannel string `json:"sse_channel,omitempty"`
 }
 
-type IncomingHTTPRequests []IncomingHTTPRequest
-
-type incomingHTTPRequestMsg struct {
-	data IncomingHTTPRequests
+type ItemMsg struct {
+	item item
 }
 
 type item struct {
-	title, desc, ip string
+	Request   sdump.RequestDefinition `json:"request,omitempty"`
+	ID        string                  `json:"id,omitempty"`
+	CreatedAt time.Time               `json:"created_at,omitempty"`
 }
 
-func (i item) Title() string       { return i.title }
-func (i item) Description() string { return i.desc }
-func (i item) FilterValue() string { return i.title }
+func (i item) Title() string { return fmt.Sprintf("%s    %s", i.ID, i.Request.IPAddress) }
+func (i item) Description() string {
+	return fmt.Sprintf("%s     %s",
+		defaultTextStyle.Copy().Foreground(faintBuleColor).
+			Render("POST"), i.CreatedAt.Format("02/01/2006 15:04:05"))
+}
+func (i item) FilterValue() string { return i.ID }
+
+// type items []item
+//
+// func (a items) Len() int            { return len(a) }
+// func (a items) Less(i, j int) bool  { return a[i].CreatedAt.Before(a[j].CreatedAt) }
+// func (a items) Swap(i, j int)       { a[i], a[j] = a[j], a[i] }
+// func (i items) FilterValue() string { return "" }
