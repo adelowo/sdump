@@ -234,18 +234,23 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.Type {
 		case tea.KeyCtrlY:
 
-			clipboard.WriteAll(m.dumpURL.String())
+			if err := clipboard.WriteAll(m.dumpURL.String()); err != nil {
+				panic(err)
+			}
 
 			return m, cmd
 
 		case tea.KeyCtrlB:
 
-			clipboard.WriteAll(m.detailedRequestViewBuffer.String())
+			if err := clipboard.WriteAll(m.detailedRequestViewBuffer.String()); err != nil {
+				panic(err)
+			}
 
 			return m, cmd
 		case tea.KeyCtrlC:
 			return m, tea.Quit
 		}
+
 	}
 
 	var cmds []tea.Cmd
