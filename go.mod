@@ -4,14 +4,17 @@ go 1.21.5
 
 require (
 	github.com/alecthomas/chroma/v2 v2.12.0
+	github.com/atotto/clipboard v0.1.4
 	github.com/charmbracelet/bubbles v0.17.1
 	github.com/charmbracelet/bubbletea v0.25.0
 	github.com/charmbracelet/lipgloss v0.9.1
+	github.com/dustin/go-humanize v1.0.1
 	github.com/go-chi/chi/v5 v5.0.11
 	github.com/go-chi/render v1.0.3
 	github.com/go-testfixtures/testfixtures/v3 v3.9.0
 	github.com/golang-migrate/migrate/v4 v4.17.0
 	github.com/google/uuid v1.4.0
+	github.com/r3labs/sse/v2 v2.10.0
 	github.com/rs/xid v1.5.0
 	github.com/sebdah/goldie/v2 v2.5.3
 	github.com/sirupsen/logrus v1.9.3
@@ -37,7 +40,6 @@ require (
 	github.com/Microsoft/hcsshim v0.11.4 // indirect
 	github.com/ajg/form v1.5.1 // indirect
 	github.com/andybalholm/brotli v1.0.5 // indirect
-	github.com/atotto/clipboard v0.1.4 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/cenkalti/backoff/v4 v4.2.1 // indirect
 	github.com/containerd/console v1.0.4-0.20230706203907-8f6c4e4faef5 // indirect
@@ -91,7 +93,6 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/power-devops/perfstat v0.0.0-20210106213030-5aafc221ea8c // indirect
-	github.com/r3labs/sse/v2 v2.10.0 // indirect
 	github.com/rivo/uniseg v0.4.4 // indirect
 	github.com/sagikazarmark/locafero v0.4.0 // indirect
 	github.com/sagikazarmark/slog-shim v0.1.0 // indirect
