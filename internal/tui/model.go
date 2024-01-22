@@ -100,11 +100,13 @@ func initialModel(cfg *config.Config) model {
 		headersTable: table.New(table.WithColumns(columns),
 			table.WithFocused(true),
 			table.WithHeight(10),
+			table.WithKeyMap(table.KeyMap{}),
 			table.WithStyles(s)),
 
 		requestDetailsTable: table.New(table.WithColumns(detailsColumn),
 			table.WithFocused(true),
 			table.WithHeight(10),
+			table.WithKeyMap(table.KeyMap{}),
 			table.WithStyles(s)),
 	}
 
@@ -112,6 +114,9 @@ func initialModel(cfg *config.Config) model {
 	m.requestList.SetShowTitle(true)
 	m.requestList.SetFilteringEnabled(false)
 	m.requestList.DisableQuitKeybindings()
+
+	m.headersTable.Blur()
+	m.requestDetailsTable.Blur()
 
 	return m
 }
@@ -232,19 +237,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			clipboard.WriteAll(m.dumpURL.String())
 
 			return m, cmd
+
+		case tea.KeyCtrlB:
+
+			clipboard.WriteAll(m.detailedRequestViewBuffer.String())
+
+			return m, cmd
 		case tea.KeyCtrlC:
 			return m, tea.Quit
-
-		case tea.KeyTab:
-
-			if m.headersTable.Focused() {
-				m.requestDetailsTable.Focus()
-				m.headersTable.Blur()
-			} else {
-				m.headersTable.Focus()
-				m.requestDetailsTable.Blur()
-			}
-			return m, cmd
 		}
 	}
 
@@ -255,12 +255,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Batch(cmds...)
 	}
 
-	if err := highlightCode(m.detailedRequestViewBuffer, selectedItem.Request.Body); err != nil {
+	jsonBody, err := prettyPrintJSON(selectedItem.Request.Body)
+	if err != nil {
+		panic(err)
+	}
+
+	m.detailedRequestViewBuffer.Reset()
+	if err := highlightCode(m.detailedRequestViewBuffer, jsonBody); err != nil {
 		panic(err)
 	}
 
 	m.detailedRequestView.SetContent(m.detailedRequestViewBuffer.String())
+
 	m.detailedRequestViewBuffer.Reset()
+	m.detailedRequestViewBuffer.WriteString(jsonBody)
 
 	rows := []table.Row{}
 
@@ -344,7 +352,11 @@ Waiting for requests on %s .. Press Ctrl-y to copy the url. You can use Ctrl-j/k
 
 func (m model) makeTable() string {
 	return lipgloss.JoinHorizontal(lipgloss.Top,
-		lipgloss.NewStyle().Margin(1, 4).Render(m.requestList.View()),
-		lipgloss.NewStyle().Padding(0, 4).Render(lipgloss.JoinHorizontal(lipgloss.Center,
-			m.headersTable.View(), m.requestDetailsTable.View()), m.detailedRequestView.View()))
+		lipgloss.NewStyle().Margin(1, 4).
+			Render(m.requestList.View()),
+		lipgloss.NewStyle().Padding(0, 0).
+			Render(lipgloss.JoinHorizontal(lipgloss.Center,
+				m.headersTable.View(), m.requestDetailsTable.View()),
+				lipgloss.NewStyle().Margin(1, 4).
+					Render(m.detailedRequestView.View())))
 }

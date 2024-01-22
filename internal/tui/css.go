@@ -1,6 +1,8 @@
 package tui
 
 import (
+	"bytes"
+	"encoding/json"
 	"io"
 
 	"github.com/alecthomas/chroma/v2/quick"
@@ -46,4 +48,12 @@ func highlightCode(w io.Writer, s string) error {
 	// TODO: make monokai configurable
 	err := quick.Highlight(w, s, "json", "terminal256", "monokai")
 	return err
+}
+
+func prettyPrintJSON(str string) (string, error) {
+	var b bytes.Buffer
+	if err := json.Indent(&b, []byte(str), "", "    "); err != nil {
+		return "", err
+	}
+	return b.String(), nil
 }
