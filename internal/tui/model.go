@@ -43,6 +43,8 @@ type model struct {
 
 	headersTable        table.Model
 	requestDetailsTable table.Model
+
+	selectedItem item
 }
 
 func initialModel(cfg *config.Config) model {
@@ -249,15 +251,79 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, cmd
 		case tea.KeyCtrlC:
 			return m, tea.Quit
+
+		case tea.KeyDown, tea.KeyUp:
+
+			selectedItem, ok := m.requestList.SelectedItem().(item)
+			if !ok {
+				return m, cmd
+			}
+
+			m.selectedItem = selectedItem
+			m.detailedRequestViewBuffer.Reset()
+
+			return m, cmd
 		}
 
 	}
 
 	var cmds []tea.Cmd
 
+	m.requestList, cmd = m.requestList.Update(msg)
+	cmds = append(cmds, cmd)
+
+	m.detailedRequestView, cmd = m.detailedRequestView.Update(msg)
+	cmds = append(cmds, cmd)
+
+	m.headersTable, cmd = m.headersTable.Update(msg)
+	cmds = append(cmds, cmd)
+
+	m.requestDetailsTable, cmd = m.requestDetailsTable.Update(msg)
+	cmds = append(cmds, cmd)
+
+	return m, tea.Batch(cmds...)
+}
+
+func (m model) View() string {
+	if m.err != nil {
+		return fmt.Sprintf(`%s. Please click CTRL+C to quit...%v`,
+			strings.Repeat("❌", 10), m.err)
+	}
+
+	if !m.isInitialized() {
+		return lipgloss.Place(
+			200, 3,
+			lipgloss.Center,
+			lipgloss.Center,
+			lipgloss.JoinVertical(lipgloss.Center,
+				boldenString("Generating your URL... press CTRL+C to quit", true),
+				strings.Repeat(m.spinner.View(), 20),
+			))
+	}
+
+	browserHeader := lipgloss.Place(
+		200, 3,
+		lipgloss.Center, lipgloss.Center,
+		lipgloss.JoinVertical(lipgloss.Center,
+			boldenString("Inspecting incoming HTTP requests", true),
+			boldenString(fmt.Sprintf(`
+Waiting for requests on %s .. Press Ctrl-y to copy the url. You can use Ctrl-j/k or arrow up and down to navigate requests`, m.dumpURL), true),
+		))
+
+	return m.spinner.View() + browserHeader + strings.Repeat("\n", 5) + m.makeTable()
+}
+
+func (m model) makeTable() string {
 	selectedItem, ok := m.requestList.SelectedItem().(item)
-	if !ok {
-		return m, tea.Batch(cmds...)
+	if !ok || m.selectedItem.Request.Body == "" {
+		return lipgloss.JoinHorizontal(lipgloss.Top,
+			lipgloss.NewStyle().Margin(1, 4).
+				Render(m.requestList.View()),
+			lipgloss.NewStyle().Padding(0, 0).
+				Render(lipgloss.JoinHorizontal(lipgloss.Center,
+					m.headersTable.View(), m.requestDetailsTable.View()),
+					lipgloss.NewStyle().Margin(1, 4).
+						Render(m.detailedRequestView.View())))
 	}
 
 	jsonBody, err := prettyPrintJSON(selectedItem.Request.Body)
@@ -265,7 +331,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		panic(err)
 	}
 
-	m.detailedRequestViewBuffer.Reset()
 	if err := highlightCode(m.detailedRequestViewBuffer, jsonBody); err != nil {
 		panic(err)
 	}
@@ -314,48 +379,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	m.requestDetailsTable.SetRows(detailsRow)
 
-	m.requestList, cmd = m.requestList.Update(msg)
-	cmds = append(cmds, cmd)
-
-	m.detailedRequestView, cmd = m.detailedRequestView.Update(msg)
-	cmds = append(cmds, cmd)
-
-	m.requestDetailsTable, cmd = m.requestDetailsTable.Update(msg)
-	cmds = append(cmds, cmd)
-
-	return m, tea.Batch(cmds...)
-}
-
-func (m model) View() string {
-	if m.err != nil {
-		return fmt.Sprintf(`%s. Please click CTRL+C to quit...%v`,
-			strings.Repeat("❌", 10), m.err)
-	}
-
-	if !m.isInitialized() {
-		return lipgloss.Place(
-			200, 3,
-			lipgloss.Center,
-			lipgloss.Center,
-			lipgloss.JoinVertical(lipgloss.Center,
-				boldenString("Generating your URL... press CTRL+C to quit", true),
-				strings.Repeat(m.spinner.View(), 20),
-			))
-	}
-
-	browserHeader := lipgloss.Place(
-		200, 3,
-		lipgloss.Center, lipgloss.Center,
-		lipgloss.JoinVertical(lipgloss.Center,
-			boldenString("Inspecting incoming HTTP requests", true),
-			boldenString(fmt.Sprintf(`
-Waiting for requests on %s .. Press Ctrl-y to copy the url. You can use Ctrl-j/k or arrow up and down to navigate requests`, m.dumpURL), true),
-		))
-
-	return m.spinner.View() + browserHeader + strings.Repeat("\n", 5) + m.makeTable()
-}
-
-func (m model) makeTable() string {
 	return lipgloss.JoinHorizontal(lipgloss.Top,
 		lipgloss.NewStyle().Margin(1, 4).
 			Render(m.requestList.View()),
