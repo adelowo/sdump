@@ -31,10 +31,11 @@ var (
 )
 
 func showError(err error) string {
-	return lipgloss.Place(200, 3, lipgloss.Center, lipgloss.Center,
-		errorStyle.Render(err.Error()+`
-	\n \n Press Ctrl-c to shut down
-	`))
+	return errorStyle.Render(lipgloss.Place(200, 3, lipgloss.Center, lipgloss.Center,
+		lipgloss.JoinVertical(lipgloss.Center, err.Error(),
+			"",
+			"Press Ctrl-c to shut down",
+		)))
 }
 
 func makeString(s string, withFeint bool) string {
