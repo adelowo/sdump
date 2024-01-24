@@ -299,7 +299,8 @@ func (m model) View() string {
 		lipgloss.JoinVertical(lipgloss.Center,
 			boldenString("Inspecting incoming HTTP requests", true),
 			boldenString(fmt.Sprintf(`
-Waiting for requests on %s .. Press Ctrl-y to copy the url. You can use Ctrl-j/k or arrow up and down to navigate requests`, m.dumpURL), true),
+Waiting for requests on %s .. Press Ctrl-y to copy the url. Use ctrl-b to copy the json request body in view.
+				You can use j,k or arrow up and down to navigate your requests`, m.dumpURL), true),
 		))
 
 	return m.spinner.View() + browserHeader + strings.Repeat("\n", 2) + m.makeTable()
