@@ -20,7 +20,6 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/dustin/go-humanize"
 	"github.com/r3labs/sse/v2"
 	"golang.org/x/term"
 )
@@ -42,9 +41,8 @@ type model struct {
 	detailedRequestView       viewport.Model
 	detailedRequestViewBuffer *bytes.Buffer
 
-	headersTable        table.Model
-	requestDetailsTable table.Model
-	width, height       int
+	headersTable  table.Model
+	width, height int
 }
 
 func initialModel(cfg *config.Config) model {
@@ -62,17 +60,6 @@ func initialModel(cfg *config.Config) model {
 	columns := []table.Column{
 		{
 			Title: "Header",
-			Width: 50,
-		},
-		{
-			Title: "Value",
-			Width: 50,
-		},
-	}
-
-	detailsColumn := []table.Column{
-		{
-			Title: "Key",
 			Width: 50,
 		},
 		{
@@ -106,12 +93,7 @@ func initialModel(cfg *config.Config) model {
 		headersTable: table.New(table.WithColumns(columns),
 			table.WithFocused(true),
 			table.WithHeight(10),
-			table.WithKeyMap(table.KeyMap{}),
-			table.WithStyles(s)),
-
-		requestDetailsTable: table.New(table.WithColumns(detailsColumn),
-			table.WithFocused(true),
-			table.WithHeight(10),
+			table.WithWidth(width),
 			table.WithKeyMap(table.KeyMap{}),
 			table.WithStyles(s)),
 	}
@@ -122,7 +104,6 @@ func initialModel(cfg *config.Config) model {
 	m.requestList.DisableQuitKeybindings()
 
 	m.headersTable.Blur()
-	m.requestDetailsTable.Blur()
 
 	return m
 }
@@ -293,9 +274,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.headersTable, cmd = m.headersTable.Update(msg)
 	cmds = append(cmds, cmd)
 
-	m.requestDetailsTable, cmd = m.requestDetailsTable.Update(msg)
-	cmds = append(cmds, cmd)
-
 	return m, tea.Batch(cmds...)
 }
 
@@ -333,7 +311,7 @@ func (m model) buildView() string {
 			Render(m.requestList.View()),
 		lipgloss.NewStyle().Padding(0, 0).
 			Render(lipgloss.JoinHorizontal(lipgloss.Center,
-				m.headersTable.View(), m.requestDetailsTable.View()),
+				m.headersTable.View(), ""),
 				lipgloss.NewStyle().Margin(1, 4).
 					Render(m.detailedRequestView.View())))
 }
@@ -386,32 +364,6 @@ func (m model) makeTable() string {
 	}
 
 	m.headersTable.SetRows(rows)
-
-	host := m.dumpURL.Host
-
-	if h := selectedItem.Request.Headers.Get("Host"); h != "" {
-		host = h
-	}
-
-	detailsRow := []table.Row{
-		{
-			"ID", selectedItem.ID,
-		},
-		{
-			"Host", host,
-		},
-		{
-			"Date", selectedItem.CreatedAt.Format("02/01/2006 15:04:05"),
-		},
-		{
-			"Size", humanize.Bytes(uint64(selectedItem.Request.Size)),
-		},
-		{
-			"IP Address", selectedItem.Request.IPAddress.String(),
-		},
-	}
-
-	m.requestDetailsTable.SetRows(detailsRow)
 
 	return m.buildView()
 }
