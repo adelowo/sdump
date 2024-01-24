@@ -44,8 +44,6 @@ type model struct {
 
 	headersTable        table.Model
 	requestDetailsTable table.Model
-
-	cachedHTTPHeaders http.Header
 }
 
 func initialModel(cfg *config.Config) model {
@@ -142,17 +140,25 @@ func (m model) Init() tea.Cmd {
 }
 
 func (m model) listenForNextItem() tea.Msg {
+	var knownError error
+
 	err := m.sseClient.Subscribe(m.pubChannel, func(msg *sse.Event) {
 		var i item
 
 		if err := json.NewDecoder(bytes.NewBuffer(msg.Data)).Decode(&i); err != nil {
-			panic(err)
+			knownError = err
+			return
 		}
 
 		m.receiveChan <- i
 	})
+
+	if knownError != nil {
+		return ErrorMsg{err: err}
+	}
+
 	if err != nil {
-		panic(err)
+		return ErrorMsg{err: err}
 	}
 
 	return nil
@@ -172,7 +178,7 @@ func (m model) createEndpoint() tea.Msg {
 
 	resp, err := m.httpClient.Do(req)
 	if err != nil {
-		panic(err)
+		return ErrorMsg{err: err}
 	}
 
 	defer resp.Body.Close()
@@ -187,7 +193,7 @@ func (m model) createEndpoint() tea.Msg {
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
-		panic(err)
+		return ErrorMsg{err: err}
 	}
 
 	return DumpURLMsg{
@@ -222,10 +228,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		go m.listenForNextItem()
 		return m, m.waitForNextItem
 
+	case ErrorMsg:
+
+		m.err = msg.err
+		return m, cmd
+
 	case ItemMsg:
 
 		m.requestList.InsertItem(0, msg.item)
-		m.cachedHTTPHeaders = msg.item.Request.Headers
 
 		return m, m.waitForNextItem
 
@@ -239,7 +249,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyCtrlY:
 
 			if err := clipboard.WriteAll(m.dumpURL.String()); err != nil {
-				panic(err)
+				return m, func() tea.Msg {
+					return ErrorMsg{err: err}
+				}
 			}
 
 			return m, cmd
@@ -247,15 +259,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyCtrlB:
 
 			if err := clipboard.WriteAll(m.detailedRequestViewBuffer.String()); err != nil {
-				panic(err)
+				return m, func() tea.Msg {
+					return ErrorMsg{err: err}
+				}
 			}
 
 			return m, cmd
 		case tea.KeyCtrlC:
 			return m, tea.Quit
-
 		}
-
 	}
 
 	var cmds []tea.Cmd
@@ -277,8 +289,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m model) View() string {
 	if m.err != nil {
-		return fmt.Sprintf(`%s. Please click CTRL+C to quit...%v`,
-			strings.Repeat("❌", 10), m.err)
+		return showError(m.err)
 	}
 
 	if !m.isInitialized() {
@@ -317,13 +328,20 @@ func (m model) makeTable() string {
 						Render(m.detailedRequestView.View())))
 	}
 
+	m.detailedRequestViewBuffer.Reset()
+
+	// Since the url is meant to take any json content ( valid or not)
+	// we do not want to enforce if a JSON is valid or not. Even on the ingestion side
+	// If we have a valid JSON, pretty print it. Else use the json body as is
 	jsonBody, err := prettyPrintJSON(selectedItem.Request.Body)
 	if err != nil {
-		panic(err)
+		jsonBody = selectedItem.Request.Body
 	}
 
+	// if we have an error here, just reuse the json body as it is without adding
+	// color
 	if err := highlightCode(m.detailedRequestViewBuffer, jsonBody); err != nil {
-		panic(err)
+		m.detailedRequestViewBuffer.WriteString(jsonBody)
 	}
 
 	m.detailedRequestView.SetContent(m.detailedRequestViewBuffer.String())

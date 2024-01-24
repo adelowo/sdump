@@ -7,6 +7,10 @@ import (
 	"github.com/adelowo/sdump"
 )
 
+type ErrorMsg struct {
+	err error
+}
+
 type DumpURLMsg struct {
 	URL        string `json:"url,omitempty"`
 	SSEChannel string `json:"sse_channel,omitempty"`
