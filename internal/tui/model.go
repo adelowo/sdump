@@ -254,11 +254,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyCtrlC:
 			return m, tea.Quit
 
-		case tea.KeyDown, tea.KeyUp:
-
-			m.detailedRequestViewBuffer.Reset()
-
-			return m, cmd
 		}
 
 	}
