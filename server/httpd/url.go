@@ -103,12 +103,14 @@ func (u *urlHandler) ingest(w http.ResponseWriter, r *http.Request) {
 	size, err := io.Copy(s, r.Body)
 	if err != nil {
 		msg := "could not copy request body"
+		status := http.StatusInternalServerError
 		if maxErr, ok := err.(*http.MaxBytesError); ok {
 			msg = maxErr.Error()
+			status = http.StatusBadRequest
 		}
 
 		logger.WithError(err).Error("could not copy request body")
-		_ = render.Render(w, r, newAPIError(http.StatusInternalServerError,
+		_ = render.Render(w, r, newAPIError(status,
 			msg))
 		return
 	}
