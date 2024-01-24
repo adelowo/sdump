@@ -44,6 +44,7 @@ type model struct {
 
 	headersTable        table.Model
 	requestDetailsTable table.Model
+	width, height       int
 }
 
 func initialModel(cfg *config.Config) model {
@@ -80,8 +81,12 @@ func initialModel(cfg *config.Config) model {
 		},
 	}
 
+	width, height, _ := term.GetSize(int(os.Stdout.Fd()))
+
 	m := model{
-		title: "Sdump",
+		width:  width,
+		height: height,
+		title:  "Sdump",
 		spinner: spinner.New(
 			spinner.WithSpinner(spinner.Line),
 			spinner.WithStyle(lipgloss.NewStyle().Foreground(lipgloss.Color("205"))),
@@ -92,8 +97,8 @@ func initialModel(cfg *config.Config) model {
 			Timeout: time.Minute,
 		},
 
-		requestList:               list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0),
-		detailedRequestView:       viewport.New(100, 50),
+		requestList:               list.New([]list.Item{}, list.NewDefaultDelegate(), 50, height),
+		detailedRequestView:       viewport.New(width, height-heightOffset(height)),
 		detailedRequestViewBuffer: bytes.NewBuffer(nil),
 		sseClient:                 sse.NewClient(fmt.Sprintf("%s/events", cfg.HTTP.Domain)),
 		receiveChan:               make(chan item),
@@ -202,6 +207,14 @@ func (m model) createEndpoint() tea.Msg {
 	}
 }
 
+func heightOffset(v int) int {
+	if v > 35 {
+		return 25
+	}
+
+	return 17
+}
+
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
@@ -241,8 +254,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.WindowSizeMsg:
 
-		h, v := lipgloss.NewStyle().Margin(1, 2).GetFrameSize()
-		m.requestList.SetSize(msg.Width-20-h, msg.Height-20-v)
+		m.requestList.SetSize(msg.Width, msg.Height-27)
 
 	case tea.KeyMsg:
 		switch msg.Type {
@@ -304,7 +316,7 @@ func (m model) View() string {
 	}
 
 	browserHeader := lipgloss.Place(
-		200, 3,
+		200, 0,
 		lipgloss.Center, lipgloss.Center,
 		lipgloss.JoinVertical(lipgloss.Center,
 			boldenString("Inspecting incoming HTTP requests", true),
@@ -312,20 +324,24 @@ func (m model) View() string {
 Waiting for requests on %s .. Press Ctrl-y to copy the url. You can use Ctrl-j/k or arrow up and down to navigate requests`, m.dumpURL), true),
 		))
 
-	return m.spinner.View() + browserHeader + strings.Repeat("\n", 5) + m.makeTable()
+	return m.spinner.View() + browserHeader + strings.Repeat("\n", 2) + m.makeTable()
+}
+
+func (m model) buildView() string {
+	return lipgloss.JoinHorizontal(lipgloss.Top,
+		lipgloss.NewStyle().Margin(1, 4).
+			Render(m.requestList.View()),
+		lipgloss.NewStyle().Padding(0, 0).
+			Render(lipgloss.JoinHorizontal(lipgloss.Center,
+				m.headersTable.View(), m.requestDetailsTable.View()),
+				lipgloss.NewStyle().Margin(1, 4).
+					Render(m.detailedRequestView.View())))
 }
 
 func (m model) makeTable() string {
 	selectedItem, ok := m.requestList.SelectedItem().(item)
 	if !ok {
-		return lipgloss.JoinHorizontal(lipgloss.Top,
-			lipgloss.NewStyle().Margin(1, 4).
-				Render(m.requestList.View()),
-			lipgloss.NewStyle().Padding(0, 0).
-				Render(lipgloss.JoinHorizontal(lipgloss.Center,
-					m.headersTable.View(), m.requestDetailsTable.View()),
-					lipgloss.NewStyle().Margin(1, 4).
-						Render(m.detailedRequestView.View())))
+		return m.buildView()
 	}
 
 	m.detailedRequestViewBuffer.Reset()
@@ -397,12 +413,5 @@ func (m model) makeTable() string {
 
 	m.requestDetailsTable.SetRows(detailsRow)
 
-	return lipgloss.JoinHorizontal(lipgloss.Top,
-		lipgloss.NewStyle().Margin(1, 4).
-			Render(m.requestList.View()),
-		lipgloss.NewStyle().Padding(0, 0).
-			Render(lipgloss.JoinHorizontal(lipgloss.Center,
-				m.headersTable.View(), m.requestDetailsTable.View()),
-				lipgloss.NewStyle().Margin(1, 4).
-					Render(m.detailedRequestView.View())))
+	return m.buildView()
 }
