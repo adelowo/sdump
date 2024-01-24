@@ -334,7 +334,7 @@ func (m model) makeTable() string {
 
 	// if we have an error here, just reuse the json body as it is without adding
 	// color
-	if err := highlightCode(m.detailedRequestViewBuffer, jsonBody); err != nil {
+	if err := highlightCode(m.detailedRequestViewBuffer, jsonBody, m.cfg.TUI.ColorScheme); err != nil {
 		m.detailedRequestViewBuffer.WriteString(jsonBody)
 	}
 

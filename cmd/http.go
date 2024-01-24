@@ -18,16 +18,12 @@ func createHTTPCommand(cmd *cobra.Command, cfg *config.Config) {
 	command := &cobra.Command{
 		Use:   "http",
 		Short: "Start/run the HTTP server",
-		RunE: func(cmd *cobra.Command, _ []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			sig := make(chan os.Signal, 1)
 
 			signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 
-			if cfg.Log == "" {
-				cfg.Log = "error"
-			}
-
-			lvl, err := logrus.ParseLevel(cfg.Log)
+			lvl, err := logrus.ParseLevel(cfg.LogLevel)
 			if err != nil {
 				return err
 			}

@@ -27,16 +27,20 @@ type HTTPConfig struct {
 	AdminSecret string `mapstructure:"admin_secret" json:"admin_secret,omitempty"`
 
 	Database struct {
-		DSN        string       `mapstructure:"dsn" json:"dsn,omitempty" yaml:"dsn"`
-		Type       DatabaseType `mapstructure:"type" json:"type,omitempty" yaml:"type"`
-		LogQueries bool         `mapstructure:"log_queries" json:"log_queries,omitempty"`
+		DSN        string `mapstructure:"dsn" json:"dsn,omitempty" yaml:"dsn"`
+		LogQueries bool   `mapstructure:"log_queries" json:"log_queries,omitempty"`
 	} `mapstructure:"database" json:"database,omitempty" yaml:"database"`
 
 	Domain string `json:"domain,omitempty"`
 }
 
+type TUIConfig struct {
+	ColorScheme string `mapstructure:"color_scheme" yaml:"color_scheme" json:"color_scheme,omitempty"`
+}
+
 type Config struct {
-	SSH  SSHConfig  `mapstructure:"ssh" json:"ssh,omitempty" yaml:"ssh"`
-	HTTP HTTPConfig `json:"http,omitempty" mapstructure:"http"`
-	Log  string     `mapstructure:"log" json:"log,omitempty"`
+	SSH      SSHConfig  `mapstructure:"ssh" json:"ssh,omitempty" yaml:"ssh"`
+	HTTP     HTTPConfig `json:"http,omitempty" mapstructure:"http" yaml:"http"`
+	LogLevel string     `mapstructure:"log_level" json:"log_level,omitempty" yaml:"log_level"`
+	TUI      TUIConfig  `mapstructure:"tui" json:"tui,omitempty" yaml:"tui"`
 }

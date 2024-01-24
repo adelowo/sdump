@@ -58,6 +58,12 @@ func initializeConfig(cfg *config.Config) error {
 	viper.AutomaticEnv()
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 
+	viper.SetDefault("tui.color_scheme", "monokai")
+	viper.SetDefault("log_level", "debug")
+	viper.SetDefault("http.database.log_queries", false)
+	viper.SetDefault("http.port", 4200)
+	viper.SetDefault("http.domain", "sdump.app")
+
 	return viper.Unmarshal(cfg)
 }
 
