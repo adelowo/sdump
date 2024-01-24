@@ -11,8 +11,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    services:
-
     steps:
 
     - name: Get the version

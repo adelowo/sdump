@@ -10,8 +10,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/adelowo/sdump"
 	"github.com/adelowo/sdump/config"
 	"github.com/adelowo/sdump/mocks"
+	"github.com/r3labs/sse/v2"
 	"github.com/sebdah/goldie/v2"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
@@ -35,7 +37,7 @@ func verifyMatch(t *testing.T, v interface{}) {
 	g.Assert(t, t.Name(), b.Bytes())
 }
 
-func TestURLHandler(t *testing.T) {
+func TestURLHandler_Create(t *testing.T) {
 	tt := []struct {
 		name               string
 		mockFn             func(urlRepo *mocks.MockURLRepository)
@@ -84,9 +86,10 @@ func TestURLHandler(t *testing.T) {
 			v.mockFn(urlRepo)
 
 			u := &urlHandler{
-				logger:  logger,
-				cfg:     config.Config{},
-				urlRepo: urlRepo,
+				logger:    logger,
+				cfg:       config.Config{},
+				urlRepo:   urlRepo,
+				sseServer: sse.New(),
 			}
 
 			u.create(recorder, req)
@@ -96,6 +99,113 @@ func TestURLHandler(t *testing.T) {
 			if !v.hasDynamicData {
 				verifyMatch(t, recorder)
 			}
+		})
+	}
+}
+
+func TestURLHandler_Ingest(t *testing.T) {
+	tt := []struct {
+		name               string
+		mockFn             func(urlRepo *mocks.MockURLRepository, requestRepo *mocks.MockIngestRepository)
+		expectedStatusCode int
+		requestBody        io.Reader
+		requestBodySize    int64
+	}{
+		{
+			name: "url reference not found",
+			mockFn: func(urlRepo *mocks.MockURLRepository, requestRepo *mocks.MockIngestRepository) {
+				urlRepo.EXPECT().Get(gomock.Any(), gomock.Any()).
+					Times(1).Return(&sdump.URLEndpoint{}, sdump.ErrURLEndpointNotFound)
+			},
+			expectedStatusCode: http.StatusNotFound,
+			requestBody:        strings.NewReader(``),
+			requestBodySize:    10,
+		},
+		{
+			name: "error while fetching url",
+			mockFn: func(urlRepo *mocks.MockURLRepository, requestRepo *mocks.MockIngestRepository) {
+				urlRepo.EXPECT().Get(gomock.Any(), gomock.Any()).
+					Times(1).Return(&sdump.URLEndpoint{}, errors.New("could not fetch url"))
+			},
+			expectedStatusCode: http.StatusInternalServerError,
+			requestBody:        strings.NewReader(``),
+			requestBodySize:    10,
+		},
+		{
+			name: "http request body too large",
+			mockFn: func(urlRepo *mocks.MockURLRepository, requestRepo *mocks.MockIngestRepository) {
+				urlRepo.EXPECT().Get(gomock.Any(), gomock.Any()).
+					Times(1).Return(&sdump.URLEndpoint{}, nil)
+			},
+			expectedStatusCode: http.StatusBadRequest,
+			requestBody:        strings.NewReader(`{"name" : "Lanre", "occupation" :"Software"}`),
+			requestBodySize:    10,
+		},
+		{
+			name: "could not create ingestion",
+			mockFn: func(urlRepo *mocks.MockURLRepository, requestRepo *mocks.MockIngestRepository) {
+				urlRepo.EXPECT().Get(gomock.Any(), gomock.Any()).
+					Times(1).Return(&sdump.URLEndpoint{}, nil)
+
+				requestRepo.EXPECT().Create(gomock.Any(), gomock.Any()).
+					Times(1).
+					Return(errors.New("could not insert into the database"))
+			},
+			expectedStatusCode: http.StatusInternalServerError,
+			requestBody:        strings.NewReader(`{"name" : "Lanre", "occupation" :"Software"}`),
+			requestBodySize:    100,
+		},
+		{
+			name: "ingested correctly",
+			mockFn: func(urlRepo *mocks.MockURLRepository, requestRepo *mocks.MockIngestRepository) {
+				urlRepo.EXPECT().Get(gomock.Any(), gomock.Any()).
+					Times(1).Return(&sdump.URLEndpoint{}, nil)
+
+				requestRepo.EXPECT().Create(gomock.Any(), gomock.Any()).
+					Times(1).
+					Return(nil)
+			},
+			expectedStatusCode: http.StatusAccepted,
+			requestBody:        strings.NewReader(`{"name" : "Lanre", "occupation" :"Software"}`),
+			requestBodySize:    100,
+		},
+	}
+
+	for _, v := range tt {
+		t.Run(v.name, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+
+			req := httptest.NewRequest(http.MethodPost, "/", v.requestBody)
+
+			logrus.SetOutput(io.Discard)
+
+			logger := logrus.WithField("module", "test")
+
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			urlRepo := mocks.NewMockURLRepository(ctrl)
+
+			requestRepo := mocks.NewMockIngestRepository(ctrl)
+
+			v.mockFn(urlRepo, requestRepo)
+
+			u := &urlHandler{
+				logger: logger,
+				cfg: config.Config{
+					HTTP: config.HTTPConfig{
+						MaxRequestBodySize: v.requestBodySize,
+					},
+				},
+				urlRepo:    urlRepo,
+				ingestRepo: requestRepo,
+				sseServer:  sse.New(),
+			}
+
+			u.ingest(recorder, req)
+
+			require.Equal(t, v.expectedStatusCode, recorder.Result().StatusCode)
+			verifyMatch(t, recorder)
 		})
 	}
 }
