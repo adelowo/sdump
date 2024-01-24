@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"sort"
 	"strings"
 	"time"
 
@@ -19,7 +20,6 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/dustin/go-humanize"
 	"github.com/r3labs/sse/v2"
 	"golang.org/x/term"
 )
@@ -41,8 +41,8 @@ type model struct {
 	detailedRequestView       viewport.Model
 	detailedRequestViewBuffer *bytes.Buffer
 
-	headersTable        table.Model
-	requestDetailsTable table.Model
+	headersTable  table.Model
+	width, height int
 }
 
 func initialModel(cfg *config.Config) model {
@@ -68,19 +68,12 @@ func initialModel(cfg *config.Config) model {
 		},
 	}
 
-	detailsColumn := []table.Column{
-		{
-			Title: "Key",
-			Width: 50,
-		},
-		{
-			Title: "Value",
-			Width: 50,
-		},
-	}
+	width, height, _ := term.GetSize(int(os.Stdout.Fd()))
 
 	m := model{
-		title: "Sdump",
+		width:  width,
+		height: height,
+		title:  "Sdump",
 		spinner: spinner.New(
 			spinner.WithSpinner(spinner.Line),
 			spinner.WithStyle(lipgloss.NewStyle().Foreground(lipgloss.Color("205"))),
@@ -91,8 +84,8 @@ func initialModel(cfg *config.Config) model {
 			Timeout: time.Minute,
 		},
 
-		requestList:               list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0),
-		detailedRequestView:       viewport.New(100, 50),
+		requestList:               list.New([]list.Item{}, list.NewDefaultDelegate(), 50, height),
+		detailedRequestView:       viewport.New(width, height-heightOffset(height)),
 		detailedRequestViewBuffer: bytes.NewBuffer(nil),
 		sseClient:                 sse.NewClient(fmt.Sprintf("%s/events", cfg.HTTP.Domain)),
 		receiveChan:               make(chan item),
@@ -100,12 +93,7 @@ func initialModel(cfg *config.Config) model {
 		headersTable: table.New(table.WithColumns(columns),
 			table.WithFocused(true),
 			table.WithHeight(10),
-			table.WithKeyMap(table.KeyMap{}),
-			table.WithStyles(s)),
-
-		requestDetailsTable: table.New(table.WithColumns(detailsColumn),
-			table.WithFocused(true),
-			table.WithHeight(10),
+			table.WithWidth(width),
 			table.WithKeyMap(table.KeyMap{}),
 			table.WithStyles(s)),
 	}
@@ -116,7 +104,6 @@ func initialModel(cfg *config.Config) model {
 	m.requestList.DisableQuitKeybindings()
 
 	m.headersTable.Blur()
-	m.requestDetailsTable.Blur()
 
 	return m
 }
@@ -139,17 +126,25 @@ func (m model) Init() tea.Cmd {
 }
 
 func (m model) listenForNextItem() tea.Msg {
+	var knownError error
+
 	err := m.sseClient.Subscribe(m.pubChannel, func(msg *sse.Event) {
 		var i item
 
 		if err := json.NewDecoder(bytes.NewBuffer(msg.Data)).Decode(&i); err != nil {
-			panic(err)
+			knownError = err
+			return
 		}
 
 		m.receiveChan <- i
 	})
+
+	if knownError != nil {
+		return ErrorMsg{err: err}
+	}
+
 	if err != nil {
-		panic(err)
+		return ErrorMsg{err: err}
 	}
 
 	return nil
@@ -169,7 +164,7 @@ func (m model) createEndpoint() tea.Msg {
 
 	resp, err := m.httpClient.Do(req)
 	if err != nil {
-		panic(err)
+		return ErrorMsg{err: err}
 	}
 
 	defer resp.Body.Close()
@@ -184,13 +179,21 @@ func (m model) createEndpoint() tea.Msg {
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
-		panic(err)
+		return ErrorMsg{err: err}
 	}
 
 	return DumpURLMsg{
 		URL:        response.URL.HumanReadableEndpoint,
 		SSEChannel: response.SSE.Channel,
 	}
+}
+
+func heightOffset(v int) int {
+	if v > 35 {
+		return 25
+	}
+
+	return 17
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -219,6 +222,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		go m.listenForNextItem()
 		return m, m.waitForNextItem
 
+	case ErrorMsg:
+
+		m.err = msg.err
+		return m, cmd
+
 	case ItemMsg:
 
 		m.requestList.InsertItem(0, msg.item)
@@ -227,15 +235,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.WindowSizeMsg:
 
-		h, v := lipgloss.NewStyle().Margin(1, 2).GetFrameSize()
-		m.requestList.SetSize(msg.Width-20-h, msg.Height-20-v)
+		m.requestList.SetSize(msg.Width, msg.Height-27)
 
 	case tea.KeyMsg:
 		switch msg.Type {
 		case tea.KeyCtrlY:
 
 			if err := clipboard.WriteAll(m.dumpURL.String()); err != nil {
-				panic(err)
+				return m, func() tea.Msg {
+					return ErrorMsg{err: err}
+				}
 			}
 
 			return m, cmd
@@ -243,76 +252,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyCtrlB:
 
 			if err := clipboard.WriteAll(m.detailedRequestViewBuffer.String()); err != nil {
-				panic(err)
+				return m, func() tea.Msg {
+					return ErrorMsg{err: err}
+				}
 			}
 
 			return m, cmd
 		case tea.KeyCtrlC:
 			return m, tea.Quit
 		}
-
 	}
 
 	var cmds []tea.Cmd
-
-	selectedItem, ok := m.requestList.SelectedItem().(item)
-	if !ok {
-		return m, tea.Batch(cmds...)
-	}
-
-	jsonBody, err := prettyPrintJSON(selectedItem.Request.Body)
-	if err != nil {
-		panic(err)
-	}
-
-	m.detailedRequestViewBuffer.Reset()
-	if err := highlightCode(m.detailedRequestViewBuffer, jsonBody); err != nil {
-		panic(err)
-	}
-
-	m.detailedRequestView.SetContent(m.detailedRequestViewBuffer.String())
-
-	m.detailedRequestViewBuffer.Reset()
-	m.detailedRequestViewBuffer.WriteString(jsonBody)
-
-	rows := []table.Row{}
-
-	for k, v := range selectedItem.Request.Headers {
-		if len(v) == 0 {
-			continue
-		}
-		rows = append(rows, table.Row{
-			k, v[0],
-		})
-	}
-
-	m.headersTable.SetRows(rows)
-
-	host := m.dumpURL.Host
-
-	if h := selectedItem.Request.Headers.Get("Host"); h != "" {
-		host = h
-	}
-
-	detailsRow := []table.Row{
-		{
-			"ID", selectedItem.ID,
-		},
-		{
-			"Host", host,
-		},
-		{
-			"Date", selectedItem.CreatedAt.Format("02/01/2006 15:04:05"),
-		},
-		{
-			"Size", humanize.Bytes(uint64(selectedItem.Request.Size)),
-		},
-		{
-			"IP Address", selectedItem.Request.IPAddress.String(),
-		},
-	}
-
-	m.requestDetailsTable.SetRows(detailsRow)
 
 	m.requestList, cmd = m.requestList.Update(msg)
 	cmds = append(cmds, cmd)
@@ -320,7 +271,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.detailedRequestView, cmd = m.detailedRequestView.Update(msg)
 	cmds = append(cmds, cmd)
 
-	m.requestDetailsTable, cmd = m.requestDetailsTable.Update(msg)
+	m.headersTable, cmd = m.headersTable.Update(msg)
 	cmds = append(cmds, cmd)
 
 	return m, tea.Batch(cmds...)
@@ -328,8 +279,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m model) View() string {
 	if m.err != nil {
-		return fmt.Sprintf(`%s. Please click CTRL+C to quit...%v`,
-			strings.Repeat("❌", 10), m.err)
+		return showError(m.err)
 	}
 
 	if !m.isInitialized() {
@@ -344,7 +294,7 @@ func (m model) View() string {
 	}
 
 	browserHeader := lipgloss.Place(
-		200, 3,
+		200, 0,
 		lipgloss.Center, lipgloss.Center,
 		lipgloss.JoinVertical(lipgloss.Center,
 			boldenString("Inspecting incoming HTTP requests", true),
@@ -352,16 +302,68 @@ func (m model) View() string {
 Waiting for requests on %s .. Press Ctrl-y to copy the url. You can use Ctrl-j/k or arrow up and down to navigate requests`, m.dumpURL), true),
 		))
 
-	return m.spinner.View() + browserHeader + strings.Repeat("\n", 5) + m.makeTable()
+	return m.spinner.View() + browserHeader + strings.Repeat("\n", 2) + m.makeTable()
 }
 
-func (m model) makeTable() string {
+func (m model) buildView() string {
 	return lipgloss.JoinHorizontal(lipgloss.Top,
 		lipgloss.NewStyle().Margin(1, 4).
 			Render(m.requestList.View()),
 		lipgloss.NewStyle().Padding(0, 0).
 			Render(lipgloss.JoinHorizontal(lipgloss.Center,
-				m.headersTable.View(), m.requestDetailsTable.View()),
+				m.headersTable.View(), ""),
 				lipgloss.NewStyle().Margin(1, 4).
 					Render(m.detailedRequestView.View())))
+}
+
+func (m model) makeTable() string {
+	selectedItem, ok := m.requestList.SelectedItem().(item)
+	if !ok {
+		return m.buildView()
+	}
+
+	m.detailedRequestViewBuffer.Reset()
+
+	// Since the url is meant to take any json content ( valid or not)
+	// we do not want to enforce if a JSON is valid or not. Even on the ingestion side
+	// If we have a valid JSON, pretty print it. Else use the json body as is
+	jsonBody, err := prettyPrintJSON(selectedItem.Request.Body)
+	if err != nil {
+		jsonBody = selectedItem.Request.Body
+	}
+
+	// if we have an error here, just reuse the json body as it is without adding
+	// color
+	if err := highlightCode(m.detailedRequestViewBuffer, jsonBody, m.cfg.TUI.ColorScheme); err != nil {
+		m.detailedRequestViewBuffer.WriteString(jsonBody)
+	}
+
+	m.detailedRequestView.SetContent(m.detailedRequestViewBuffer.String())
+
+	m.detailedRequestViewBuffer.Reset()
+	m.detailedRequestViewBuffer.WriteString(jsonBody)
+
+	var keys []string
+	for key := range selectedItem.Request.Headers {
+		keys = append(keys, key)
+	}
+
+	sort.Strings(keys)
+
+	rows := []table.Row{}
+
+	for _, v := range keys {
+		value := selectedItem.Request.Headers.Get(v)
+		if value == "" {
+			continue
+		}
+
+		rows = append(rows, table.Row{
+			v, value,
+		})
+	}
+
+	m.headersTable.SetRows(rows)
+
+	return m.buildView()
 }

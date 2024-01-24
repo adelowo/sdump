@@ -21,8 +21,22 @@ var (
 	// fuschiaColor   = lipgloss.Color("#EF5DA8")
 	faintBuleColor = lipgloss.Color("#428BCA")
 
+	errorStyle = lipgloss.NewStyle().BorderForeground(lipgloss.Color("9")).
+			Border(lipgloss.RoundedBorder()).
+			Align(lipgloss.Center).
+			Margin(0, 0, 0, 1).
+			Padding(0, 2, 0, 2)
+
 	defaultTextStyle = lipgloss.NewStyle().Foreground(color)
 )
+
+func showError(err error) string {
+	return errorStyle.Render(lipgloss.Place(200, 3, lipgloss.Center, lipgloss.Center,
+		lipgloss.JoinVertical(lipgloss.Center, err.Error(),
+			"",
+			"Press Ctrl-c to shut down",
+		)))
+}
 
 func makeString(s string, withFeint bool) string {
 	style := defaultTextStyle.Copy()
@@ -44,9 +58,9 @@ func boldenString(s string, withFeint bool) string {
 	return style.Render(s)
 }
 
-func highlightCode(w io.Writer, s string) error {
+func highlightCode(w io.Writer, s, colorscheme string) error {
 	// TODO: make monokai configurable
-	err := quick.Highlight(w, s, "json", "terminal256", "monokai")
+	err := quick.Highlight(w, s, "json", "terminal256", colorscheme)
 	return err
 }
 
