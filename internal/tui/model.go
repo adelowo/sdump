@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"sort"
 	"strings"
 	"time"
 
@@ -44,7 +45,7 @@ type model struct {
 	headersTable        table.Model
 	requestDetailsTable table.Model
 
-	selectedItem item
+	cachedHTTPHeaders http.Header
 }
 
 func initialModel(cfg *config.Config) model {
@@ -224,6 +225,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case ItemMsg:
 
 		m.requestList.InsertItem(0, msg.item)
+		m.cachedHTTPHeaders = msg.item.Request.Headers
 
 		return m, m.waitForNextItem
 
@@ -254,12 +256,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case tea.KeyDown, tea.KeyUp:
 
-			selectedItem, ok := m.requestList.SelectedItem().(item)
-			if !ok {
-				return m, cmd
-			}
-
-			m.selectedItem = selectedItem
 			m.detailedRequestViewBuffer.Reset()
 
 			return m, cmd
@@ -315,7 +311,7 @@ Waiting for requests on %s .. Press Ctrl-y to copy the url. You can use Ctrl-j/k
 
 func (m model) makeTable() string {
 	selectedItem, ok := m.requestList.SelectedItem().(item)
-	if !ok || m.selectedItem.Request.Body == "" {
+	if !ok {
 		return lipgloss.JoinHorizontal(lipgloss.Top,
 			lipgloss.NewStyle().Margin(1, 4).
 				Render(m.requestList.View()),
@@ -340,14 +336,23 @@ func (m model) makeTable() string {
 	m.detailedRequestViewBuffer.Reset()
 	m.detailedRequestViewBuffer.WriteString(jsonBody)
 
+	var keys []string
+	for key := range selectedItem.Request.Headers {
+		keys = append(keys, key)
+	}
+
+	sort.Strings(keys)
+
 	rows := []table.Row{}
 
-	for k, v := range selectedItem.Request.Headers {
-		if len(v) == 0 {
+	for _, v := range keys {
+		value := selectedItem.Request.Headers.Get(v)
+		if value == "" {
 			continue
 		}
+
 		rows = append(rows, table.Row{
-			k, v[0],
+			v, value,
 		})
 	}
 
