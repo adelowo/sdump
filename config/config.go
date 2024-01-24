@@ -17,21 +17,22 @@ type SSHConfig struct {
 type HTTPConfig struct {
 	// Port to run http server on
 	// The server
-	Port int `mapstructure:"port" json:"port,omitempty"`
+	Port int `mapstructure:"port" json:"port,omitempty" yaml:"port"`
 
 	// AdminSecret is used to protect routes that are meant to be internal or
 	// only ran by an admin
 	// Endpoints to create a new url as an example should only be ran by an admin
 	// or the ssh server ( after it has verified we have a verified connection)
 	// If empty, server would crash
-	AdminSecret string `mapstructure:"admin_secret" json:"admin_secret,omitempty"`
+	AdminSecret string `mapstructure:"admin_secret" json:"admin_secret,omitempty" yaml:"admin_secret"`
 
 	Database struct {
 		DSN        string `mapstructure:"dsn" json:"dsn,omitempty" yaml:"dsn"`
-		LogQueries bool   `mapstructure:"log_queries" json:"log_queries,omitempty"`
+		LogQueries bool   `mapstructure:"log_queries" json:"log_queries,omitempty" yaml:"log_queries"`
 	} `mapstructure:"database" json:"database,omitempty" yaml:"database"`
 
-	Domain string `json:"domain,omitempty"`
+	Domain             string `json:"domain,omitempty" yaml:"domain" mapstructure:"domain"`
+	MaxRequestBodySize int64  `json:"max_request_body_size,omitempty" yaml:"max_request_body_size" mapstructure:"max_request_body_size"`
 }
 
 type TUIConfig struct {

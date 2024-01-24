@@ -78,6 +78,8 @@ func (u *urlHandler) ingest(w http.ResponseWriter, r *http.Request) {
 
 	logger.Debug("Ingesting http request")
 
+	r.Body = http.MaxBytesReader(w, r.Body, u.cfg.HTTP.MaxRequestBodySize)
+
 	ctx := r.Context()
 
 	endpoint, err := u.urlRepo.Get(ctx, &sdump.FindURLOptions{
@@ -100,9 +102,14 @@ func (u *urlHandler) ingest(w http.ResponseWriter, r *http.Request) {
 
 	size, err := io.Copy(s, r.Body)
 	if err != nil {
+		msg := "could not copy request body"
+		if maxErr, ok := err.(*http.MaxBytesError); ok {
+			msg = maxErr.Error()
+		}
+
 		logger.WithError(err).Error("could not copy request body")
 		_ = render.Render(w, r, newAPIError(http.StatusInternalServerError,
-			"could not copy request body"))
+			msg))
 		return
 	}
 
