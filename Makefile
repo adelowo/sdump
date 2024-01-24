@@ -9,3 +9,4 @@ migrate-down:
 
 run-http:
 	go run cmd/*.go
+

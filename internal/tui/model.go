@@ -45,7 +45,7 @@ type model struct {
 	width, height int
 }
 
-func initialModel(cfg *config.Config) model {
+func InitialModel(cfg *config.Config) model {
 	s := table.DefaultStyles()
 	s.Header = s.Header.
 		BorderStyle(lipgloss.NormalBorder()).
