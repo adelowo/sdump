@@ -63,7 +63,10 @@ func initializeConfig(cfg *config.Config) error {
 	viper.SetDefault("http.database.log_queries", false)
 	viper.SetDefault("http.port", 4200)
 	viper.SetDefault("http.domain", "sdump.app")
-	viper.SetDefault("http.max_request_body", 1024)
+	viper.SetDefault("http.max_request_body_size", 1024)
+	viper.SetDefault("ssh.port", 2222)
+	viper.SetDefault("ssh.host", "localhost")
+	viper.SetDefault("ssh.identities", []string{".ssh/id_rsa"})
 
 	return viper.Unmarshal(cfg)
 }

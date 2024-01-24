@@ -8,7 +8,7 @@ import (
 type App struct{}
 
 func New(cfg *config.Config) *tea.Program {
-	p := tea.NewProgram(initialModel(cfg), tea.WithAltScreen())
+	p := tea.NewProgram(InitialModel(cfg), tea.WithAltScreen())
 
 	return p
 }
