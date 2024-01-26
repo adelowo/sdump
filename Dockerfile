@@ -12,5 +12,5 @@ RUN go install ./cmd
 
 FROM gcr.io/distroless/base
 COPY --from=build-env /go/bin/cmd /
-CMD ["/cmd"]
+CMD ["/cmd","http"]
 
