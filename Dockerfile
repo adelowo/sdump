@@ -7,7 +7,7 @@ COPY ./go.sum /go/src/github.com/adelowo/sdump
 RUN go mod download && go mod verify
 COPY . .
 
-
+ENV CGO_ENABLED=0 
 RUN go install ./cmd
 
 FROM gcr.io/distroless/base
