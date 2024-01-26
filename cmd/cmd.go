@@ -41,6 +41,21 @@ func initializeConfig(cfg *config.Config) error {
 		return err
 	}
 
+	viper.SetDefault("tui.color_scheme", "monokai")
+	viper.SetDefault("log_level", "debug")
+	viper.SetDefault("ssh.port", 2222)
+	viper.SetDefault("ssh.host", "localhost")
+	viper.SetDefault("ssh.identities", []string{".ssh/id_rsa"})
+	viper.SetDefault("http.database.log_queries", false)
+	viper.SetDefault("http.port", 4200)
+	viper.SetDefault("http.domain", "sdump.app")
+	viper.SetDefault("http.max_request_body_size", 1024)
+	viper.SetDefault("http.prometheus.is_enabled", false)
+	viper.SetDefault("http.otel.is_enabled", false)
+	viper.SetDefault("http.otel.use_tls", true)
+	viper.SetDefault("http.otel.service_name", "SDUMP")
+	viper.SetDefault("http.otel.endpoint", "localhost:9500")
+
 	viper.AddConfigPath(filepath.Join(homePath, ".config", defaultConfigFilePath))
 	viper.AddConfigPath(".")
 
@@ -57,20 +72,6 @@ func initializeConfig(cfg *config.Config) error {
 
 	viper.AutomaticEnv()
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
-
-	viper.SetDefault("tui.color_scheme", "monokai")
-	viper.SetDefault("log_level", "debug")
-	viper.SetDefault("ssh.port", 2222)
-	viper.SetDefault("ssh.host", "localhost")
-	viper.SetDefault("ssh.identities", []string{".ssh/id_rsa"})
-	viper.SetDefault("http.database.log_queries", false)
-	viper.SetDefault("http.port", 4200)
-	viper.SetDefault("http.domain", "sdump.app")
-	viper.SetDefault("http.max_request_body_size", 1024)
-	viper.SetDefault("http.prometheus.is_enabled", false)
-	viper.SetDefault("http.otel.is_enabled", false)
-	viper.SetDefault("http.otel.use_tls", true)
-	viper.SetDefault("http.otel.service_name", "SDUMP")
 
 	return viper.Unmarshal(cfg)
 }
