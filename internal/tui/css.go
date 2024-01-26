@@ -59,7 +59,6 @@ func boldenString(s string, withFeint bool) string {
 }
 
 func highlightCode(w io.Writer, s, colorscheme string) error {
-	// TODO: make monokai configurable
 	err := quick.Highlight(w, s, "json", "terminal256", colorscheme)
 	return err
 }
