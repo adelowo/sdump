@@ -30,9 +30,17 @@ func createHTTPCommand(cmd *cobra.Command, cfg *config.Config) {
 
 			signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 
-			cleanupFn, err := initTracer(cfg)
-			if err != nil {
-				return err
+			cleanupFn := func(_ context.Context) error {
+				return nil
+			}
+
+			var err error
+
+			if cfg.HTTP.OTEL.IsEnabled {
+				cleanupFn, err = initTracer(cfg)
+				if err != nil {
+					return err
+				}
 			}
 
 			lvl, err := logrus.ParseLevel(cfg.LogLevel)

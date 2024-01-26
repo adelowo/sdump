@@ -8,3 +8,7 @@ http:
   domain: http://localhost:4200
   database:
     dsn: postgres://sdump:sdump@localhost:3432/sdump?sslmode=disable
+
+  prometheus:
+    username: sdump
+    password: sdump

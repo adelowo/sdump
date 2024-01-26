@@ -37,7 +37,15 @@ type HTTPConfig struct {
 		UseTLS      bool   `json:"use_tls,omitempty" mapstructure:"use_tls" yaml:"use_tls"`
 		ServiceName string `json:"service_name,omitempty" mapstructure:"service_name" yaml:"service_name"`
 		Endpoint    string `json:"endpoint,omitempty" mapstructure:"endpoint" yaml:"endpoint"`
+		IsEnabled   bool   `json:"is_enabled,omitempty" mapstructure:"is_enabled" yaml:"is_enabled"`
 	} `json:"otel,omitempty" mapstructure:"otel" yaml:"otel"`
+
+	// Prometheus config to protect the /metrics endpoint
+	// This will be used as basic auth information
+	Prometheus struct {
+		Username string `json:"username,omitempty" mapstructure:"username" yaml:"username"`
+		Password string `json:"password,omitempty" mapstructure:"password" yaml:"password"`
+	} `json:"prometheus,omitempty" mapstructure:"prometheus" yaml:"prometheus"`
 }
 
 type TUIConfig struct {
