@@ -5,7 +5,7 @@ ssh:
 
 http:
   port: 4200
-  domain: http://localhost:4200
+  domain: https://sdump.app
   database:
     dsn: postgres://sdump:sdump@localhost:3432/sdump?sslmode=disable
 
