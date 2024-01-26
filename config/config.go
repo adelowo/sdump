@@ -43,8 +43,9 @@ type HTTPConfig struct {
 	// Prometheus config to protect the /metrics endpoint
 	// This will be used as basic auth information
 	Prometheus struct {
-		Username string `json:"username,omitempty" mapstructure:"username" yaml:"username"`
-		Password string `json:"password,omitempty" mapstructure:"password" yaml:"password"`
+		Username  string `json:"username,omitempty" mapstructure:"username" yaml:"username"`
+		Password  string `json:"password,omitempty" mapstructure:"password" yaml:"password"`
+		IsEnabled bool   `json:"is_enabled,omitempty" mapstructure:"is_enabled" yaml:"is_enabled"`
 	} `json:"prometheus,omitempty" mapstructure:"prometheus" yaml:"prometheus"`
 }
 

@@ -53,10 +53,12 @@ func buildRoutes(cfg config.Config,
 
 	router.Use(writeRequestIDHeader)
 
-	router.Use(telemetry.Collector(telemetry.Config{
-		Username: cfg.HTTP.Prometheus.Username,
-		Password: cfg.HTTP.Prometheus.Password,
-	}, []string{"/"}))
+	if cfg.HTTP.Prometheus.IsEnabled {
+		router.Use(telemetry.Collector(telemetry.Config{
+			Username: cfg.HTTP.Prometheus.Username,
+			Password: cfg.HTTP.Prometheus.Password,
+		}, []string{"/"}))
+	}
 
 	router.Use(otelchi.Middleware("http-router", otelchi.WithChiRoutes(router)))
 
