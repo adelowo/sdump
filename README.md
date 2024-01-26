@@ -39,3 +39,7 @@ ssh ssh.sdump.app
 HTTP requests
 - `ctrl + b`: Copies the JSON request body of the current request
 you are viewing
+
+### Developers' note
+
+Use `ssh-keygen -f .ssh/id_rsa` to generate a test ssh key
