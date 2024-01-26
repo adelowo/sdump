@@ -9,7 +9,9 @@ import (
 	"github.com/adelowo/sdump/config"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/telemetry"
 	"github.com/r3labs/sse/v2"
+	"github.com/riandyrn/otelchi"
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -39,6 +41,7 @@ func buildRoutes(cfg config.Config,
 	router.Use(middleware.AllowContentType("application/json"))
 	router.Use(middleware.RequestID)
 	router.Use(writeRequestIDHeader)
+	router.Use(jsonResponse)
 
 	urlHandler := &urlHandler{
 		cfg:        cfg,
@@ -47,6 +50,17 @@ func buildRoutes(cfg config.Config,
 		ingestRepo: ingestRepo,
 		sseServer:  sseServer,
 	}
+
+	router.Use(writeRequestIDHeader)
+
+	if cfg.HTTP.Prometheus.IsEnabled {
+		router.Use(telemetry.Collector(telemetry.Config{
+			Username: cfg.HTTP.Prometheus.Username,
+			Password: cfg.HTTP.Prometheus.Password,
+		}, []string{"/"}))
+	}
+
+	router.Use(otelchi.Middleware("http-router", otelchi.WithChiRoutes(router)))
 
 	router.Post("/", urlHandler.create)
 	router.Post("/{reference}", urlHandler.ingest)
@@ -62,9 +76,16 @@ func writeRequestIDHeader(next http.Handler) http.Handler {
 	})
 }
 
+func jsonResponse(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		next.ServeHTTP(w, r)
+	})
+}
+
 func retrieveRequestID(r *http.Request) string { return middleware.GetReqID(r.Context()) }
 
-var tracer = otel.Tracer("sdump")
+var tracer = otel.Tracer("sdump.http")
 
 func getTracer(ctx context.Context,
 	r *http.Request, operationName string,
