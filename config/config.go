@@ -32,6 +32,12 @@ type HTTPConfig struct {
 
 	Domain             string `json:"domain,omitempty" yaml:"domain" mapstructure:"domain"`
 	MaxRequestBodySize int64  `json:"max_request_body_size,omitempty" yaml:"max_request_body_size" mapstructure:"max_request_body_size"`
+
+	OTEL struct {
+		UseTLS      bool   `json:"use_tls,omitempty" mapstructure:"use_tls" yaml:"use_tls"`
+		ServiceName string `json:"service_name,omitempty" mapstructure:"service_name" yaml:"service_name"`
+		Endpoint    string `json:"endpoint,omitempty" mapstructure:"endpoint" yaml:"endpoint"`
+	} `json:"otel,omitempty" mapstructure:"otel" yaml:"otel"`
 }
 
 type TUIConfig struct {

@@ -12,6 +12,13 @@ import (
 	"github.com/r3labs/sse/v2"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	"go.opentelemetry.io/otel/sdk/resource"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"google.golang.org/grpc/credentials"
 )
 
 func createHTTPCommand(cmd *cobra.Command, cfg *config.Config) {
@@ -22,6 +29,11 @@ func createHTTPCommand(cmd *cobra.Command, cfg *config.Config) {
 			sig := make(chan os.Signal, 1)
 
 			signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
+
+			cleanupFn, err := initTracer(cfg)
+			if err != nil {
+				return err
+			}
 
 			lvl, err := logrus.ParseLevel(cfg.LogLevel)
 			if err != nil {
@@ -60,13 +72,14 @@ func createHTTPCommand(cmd *cobra.Command, cfg *config.Config) {
 			}()
 
 			<-sig
-
-			if err := db.Close(); err != nil {
-				logger.WithError(err).Error("could not shut down database connection")
-			}
+			cleanupFn(context.Background())
 
 			if err := httpServer.Shutdown(context.Background()); err != nil {
 				logger.WithError(err).Error("could not shut down http server")
+			}
+
+			if err := db.Close(); err != nil {
+				logger.WithError(err).Error("could not shut down database connection")
 			}
 
 			sseServer.Close()
@@ -76,4 +89,43 @@ func createHTTPCommand(cmd *cobra.Command, cfg *config.Config) {
 	}
 
 	cmd.AddCommand(command)
+}
+
+func initTracer(cfg *config.Config) (func(context.Context) error, error) {
+	secureOption := otlptracegrpc.WithTLSCredentials(credentials.NewClientTLSFromCert(nil, ""))
+	if !cfg.HTTP.OTEL.UseTLS {
+		secureOption = otlptracegrpc.WithInsecure()
+	}
+
+	exporter, err := otlptrace.New(
+		context.Background(),
+		otlptracegrpc.NewClient(
+			secureOption,
+			otlptracegrpc.WithEndpoint(cfg.HTTP.OTEL.Endpoint),
+		),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	resources, err := resource.New(
+		context.Background(),
+		resource.WithAttributes(
+			attribute.String("service.name", cfg.HTTP.OTEL.ServiceName),
+			attribute.String("library.language", "go"),
+		),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	otel.SetTracerProvider(
+		sdktrace.NewTracerProvider(
+			sdktrace.WithSampler(sdktrace.AlwaysSample()),
+			sdktrace.WithBatcher(exporter),
+			sdktrace.WithResource(resources),
+		),
+	)
+
+	return exporter.Shutdown, nil
 }
