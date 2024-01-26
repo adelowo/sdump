@@ -1,6 +1,7 @@
 package httpd
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 
@@ -10,6 +11,9 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/r3labs/sse/v2"
 	"github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 func New(cfg config.Config,
@@ -59,3 +63,17 @@ func writeRequestIDHeader(next http.Handler) http.Handler {
 }
 
 func retrieveRequestID(r *http.Request) string { return middleware.GetReqID(r.Context()) }
+
+var tracer = otel.Tracer("sdump")
+
+func getTracer(ctx context.Context,
+	r *http.Request, operationName string,
+) (context.Context, trace.Span, string) {
+	ctx, span := tracer.Start(ctx, operationName)
+
+	rid := retrieveRequestID(r)
+
+	span.SetAttributes(attribute.String("request_id", rid))
+
+	return ctx, span, rid
+}
