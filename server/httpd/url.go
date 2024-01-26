@@ -17,6 +17,7 @@ import (
 	"github.com/go-chi/render"
 	"github.com/r3labs/sse/v2"
 	"github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel/codes"
 )
 
 type urlHandler struct {
@@ -28,17 +29,20 @@ type urlHandler struct {
 }
 
 func (u *urlHandler) create(w http.ResponseWriter, r *http.Request) {
-	logger := u.logger.WithField("method", "urlHandler.create").
-		WithField("request_id", retrieveRequestID(r))
+	ctx, span, requestID := getTracer(r.Context(), r, "url.create")
+	defer span.End()
+
+	logger := u.logger.WithField("method", "url.create").
+		WithField("request_id", requestID)
 
 	logger.Debug("Creating new url endpoint")
-
-	ctx := r.Context()
 
 	endpoint := sdump.NewURLEndpoint()
 
 	if err := u.urlRepo.Create(ctx, endpoint); err != nil {
 		logger.WithError(err).Error("could not create url endpoint")
+
+		span.SetStatus(codes.Error, "could not create url endpoint")
 
 		_ = render.Render(w, r, newAPIError(http.StatusInternalServerError,
 			"an error occurred while generating endpoint"))
@@ -49,6 +53,7 @@ func (u *urlHandler) create(w http.ResponseWriter, r *http.Request) {
 		_ = u.sseServer.CreateStream(endpoint.PubChannel())
 	}()
 
+	span.SetStatus(codes.Ok, "created url")
 	_ = render.Render(w, r, &createdURLEndpointResponse{
 		APIStatus: newAPIStatus(http.StatusOK, "created url endpoint"),
 		SSE: struct {
@@ -70,17 +75,18 @@ func (u *urlHandler) create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (u *urlHandler) ingest(w http.ResponseWriter, r *http.Request) {
+	ctx, span, requestID := getTracer(r.Context(), r, "url.ingest")
+	defer span.End()
+
 	reference := chi.URLParam(r, "reference")
 
-	logger := u.logger.WithField("request_id", retrieveRequestID(r)).
+	logger := u.logger.WithField("request_id", requestID).
 		WithField("method", "urlHandler.ingest").
 		WithField("reference", reference)
 
 	logger.Debug("Ingesting http request")
 
 	r.Body = http.MaxBytesReader(w, r.Body, u.cfg.HTTP.MaxRequestBodySize)
-
-	ctx := r.Context()
 
 	endpoint, err := u.urlRepo.Get(ctx, &sdump.FindURLOptions{
 		Reference: reference,
@@ -92,6 +98,9 @@ func (u *urlHandler) ingest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err != nil {
+
+		span.SetStatus(codes.Error, "url not found")
+
 		logger.WithError(err).Error("could not find dump url by reference")
 		_ = render.Render(w, r, newAPIError(http.StatusInternalServerError,
 			"an error occurred while ingesting HTTP request"))
@@ -110,6 +119,7 @@ func (u *urlHandler) ingest(w http.ResponseWriter, r *http.Request) {
 		}
 
 		logger.WithError(err).Error("could not copy request body")
+		span.SetStatus(codes.Error, "could not copy request body for ingestion")
 		_ = render.Render(w, r, newAPIError(status,
 			msg))
 		return
@@ -128,6 +138,7 @@ func (u *urlHandler) ingest(w http.ResponseWriter, r *http.Request) {
 
 	if err := u.ingestRepo.Create(ctx, ingestedRequest); err != nil {
 		logger.WithError(err).Error("could not ingest request")
+		span.SetStatus(codes.Error, "could not ingest request")
 		_ = render.Render(w, r, newAPIError(http.StatusInternalServerError,
 			"an error occurred while ingesting request"))
 		return
@@ -161,6 +172,7 @@ func (u *urlHandler) ingest(w http.ResponseWriter, r *http.Request) {
 		})
 	}()
 
+	span.SetStatus(codes.Ok, "ingested request")
 	_ = render.Render(w, r, newAPIStatus(http.StatusAccepted,
 		"Request ingested"))
 }
