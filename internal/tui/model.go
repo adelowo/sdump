@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/adelowo/sdump/config"
-	"github.com/atotto/clipboard"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/table"
@@ -21,6 +20,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/r3labs/sse/v2"
+	"golang.design/x/clipboard"
 	"golang.org/x/term"
 )
 
@@ -237,25 +237,19 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		m.requestList.SetSize(msg.Width, msg.Height-27)
 
+		return m, cmd
+
 	case tea.KeyMsg:
 		switch msg.Type {
 		case tea.KeyCtrlY:
 
-			if err := clipboard.WriteAll(m.dumpURL.String()); err != nil {
-				return m, func() tea.Msg {
-					return ErrorMsg{err: err}
-				}
-			}
+			_ = clipboard.Write(clipboard.FmtText, []byte(m.dumpURL.String()))
 
 			return m, cmd
 
 		case tea.KeyCtrlB:
 
-			if err := clipboard.WriteAll(m.detailedRequestViewBuffer.String()); err != nil {
-				return m, func() tea.Msg {
-					return ErrorMsg{err: err}
-				}
-			}
+			_ = clipboard.Write(clipboard.FmtText, m.detailedRequestViewBuffer.Bytes())
 
 			return m, cmd
 		case tea.KeyCtrlC:
