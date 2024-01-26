@@ -72,7 +72,9 @@ func createHTTPCommand(cmd *cobra.Command, cfg *config.Config) {
 			}()
 
 			<-sig
-			cleanupFn(context.Background())
+			if err := cleanupFn(context.Background()); err != nil {
+				logger.WithError(err).Error("could not properly shut down OTEL")
+			}
 
 			if err := httpServer.Shutdown(context.Background()); err != nil {
 				logger.WithError(err).Error("could not shut down http server")
