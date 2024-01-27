@@ -72,7 +72,7 @@ sudo systemctl daemon-reload
 sudo systemctl start sdump
 ```
 
-I already use Caddy so all i needed to do was extend the documentation as below:
+I already use Caddy so all i needed to do was extend the config as below:
 
 ```json
 {
