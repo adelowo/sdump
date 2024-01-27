@@ -81,6 +81,7 @@ func Execute() error {
 
 	createHTTPCommand(rootCmd, cfg)
 	createSSHCommand(rootCmd, cfg)
+	createDeleteCommand(rootCmd, cfg)
 
 	return rootCmd.Execute()
 }
