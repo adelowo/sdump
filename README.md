@@ -30,10 +30,12 @@ listen to the port for TCP connections, but only if that port is available.
 ### How to use
 
 ```sh
-ssh ssh.sdump.app
+ssh -p 2222 ssh.sdump.app
 ```
 
 ### Commands
+
+> If these commands don't work for you somehow, please let me know!
 
 - `ctrl + y`: Copies the generated url you can use to debug
 HTTP requests
@@ -43,3 +45,8 @@ you are viewing
 ### Developers' note
 
 Use `ssh-keygen -f .ssh/id_rsa` to generate a test ssh key
+
+### Deployment to your own server?
+
+I have added a [guide](./deploy/README.md) here on how I have
+deployed the public version
