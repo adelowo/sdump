@@ -10,6 +10,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/telemetry"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/r3labs/sse/v2"
 	"github.com/riandyrn/otelchi"
 	"github.com/sirupsen/logrus"
@@ -17,6 +18,21 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
+
+var createdURLMetrics = prometheus.NewCounter(prometheus.CounterOpts{
+	Name: "sdump_created_urls",
+	Help: "The number of urls that have been created in total",
+})
+
+var ingestedHTTPRequestsCounter = prometheus.NewCounter(prometheus.CounterOpts{
+	Name: "sdump_ingested_http_requests",
+	Help: "Total number of ingested HTTP requests",
+})
+
+var failedIngestedHTTPRequestsCounter = prometheus.NewCounter(prometheus.CounterOpts{
+	Name: "sdump_ingested_http_requests_failure",
+	Help: "Total number of failed attempts to ingest HTTP requests",
+})
 
 func New(cfg config.Config,
 	urlRepo sdump.URLRepository,
@@ -58,6 +74,10 @@ func buildRoutes(cfg config.Config,
 			Username: cfg.HTTP.Prometheus.Username,
 			Password: cfg.HTTP.Prometheus.Password,
 		}, []string{"/"}))
+
+		_ = prometheus.Register(ingestedHTTPRequestsCounter)
+		_ = prometheus.Register(failedIngestedHTTPRequestsCounter)
+		_ = prometheus.Register(createdURLMetrics)
 	}
 
 	router.Use(otelchi.Middleware("http-router", otelchi.WithChiRoutes(router)))
