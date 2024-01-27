@@ -81,12 +81,13 @@ func createSSHCommand(rootCmd *cobra.Command, cfg *config.Config) {
 
 func teaHandler(cfg *config.Config) func(s ssh.Session) (tea.Model, []tea.ProgramOption) {
 	return func(s ssh.Session) (tea.Model, []tea.ProgramOption) {
-		_, _, active := s.Pty()
+		pty, _, active := s.Pty()
 		if !active {
 			wish.Fatalln(s, "no active terminal, skipping")
 			return nil, nil
 		}
 
-		return tui.InitialModel(cfg), []tea.ProgramOption{tea.WithAltScreen()}
+		return tui.InitialModel(cfg, pty.Window.Width, pty.Window.Height),
+			[]tea.ProgramOption{tea.WithAltScreen()}
 	}
 }

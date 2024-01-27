@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"os"
 	"sort"
 	"strings"
 	"time"
@@ -21,7 +20,6 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/r3labs/sse/v2"
 	"golang.design/x/clipboard"
-	"golang.org/x/term"
 )
 
 type model struct {
@@ -45,7 +43,7 @@ type model struct {
 	width, height int
 }
 
-func InitialModel(cfg *config.Config) model {
+func InitialModel(cfg *config.Config, width, height int) model {
 	s := table.DefaultStyles()
 	s.Header = s.Header.
 		BorderStyle(lipgloss.NormalBorder()).
@@ -67,8 +65,6 @@ func InitialModel(cfg *config.Config) model {
 			Width: 50,
 		},
 	}
-
-	width, height, _ := term.GetSize(int(os.Stdout.Fd()))
 
 	m := model{
 		width:  width,
@@ -112,14 +108,6 @@ func (m model) isInitialized() bool { return m.dumpURL != nil }
 
 func (m model) Init() tea.Cmd {
 	tea.SetWindowTitle(m.title)
-
-	width, height, err := term.GetSize(int(os.Stdout.Fd()))
-	if err != nil {
-		return nil
-	}
-
-	m.detailedRequestView.Width = width
-	m.detailedRequestView.Height = height
 
 	return tea.Batch(m.spinner.Tick,
 		m.createEndpoint)
@@ -307,7 +295,7 @@ func (m model) buildView() string {
 		lipgloss.NewStyle().Padding(0, 0).
 			Render(lipgloss.JoinHorizontal(lipgloss.Center,
 				m.headersTable.View(), ""),
-				lipgloss.NewStyle().Margin(1, 4).
+				lipgloss.NewStyle().Margin(3, 0, 0, 0).
 					Render(m.detailedRequestView.View())))
 }
 
