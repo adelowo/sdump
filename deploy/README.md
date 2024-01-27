@@ -6,7 +6,7 @@ you can test online today.
 ## HTTP server
 
 I already have a K8s cluster I use to run my side projects and
-[Ayinke Ventures](htps://ayinke.ventures) so I have deployed
+[Ayinke Ventures](https://ayinke.ventures) so I have deployed
 the http component there.
 
 > K8s is overkill for this by the way. Just take the binary
