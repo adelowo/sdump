@@ -295,7 +295,7 @@ func (m model) buildView() string {
 		lipgloss.NewStyle().Padding(0, 0).
 			Render(lipgloss.JoinHorizontal(lipgloss.Center,
 				m.headersTable.View(), ""),
-				lipgloss.NewStyle().Margin(1, 4).
+				lipgloss.NewStyle().Margin(3, 0, 0, 0).
 					Render(m.detailedRequestView.View())))
 }
 
