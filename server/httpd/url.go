@@ -53,6 +53,7 @@ func (u *urlHandler) create(w http.ResponseWriter, r *http.Request) {
 		_ = u.sseServer.CreateStream(endpoint.PubChannel())
 	}()
 
+	createdURLMetrics.Inc()
 	span.SetStatus(codes.Ok, "created url")
 	_ = render.Render(w, r, &createdURLEndpointResponse{
 		APIStatus: newAPIStatus(http.StatusOK, "created url endpoint"),
@@ -101,6 +102,7 @@ func (u *urlHandler) ingest(w http.ResponseWriter, r *http.Request) {
 
 		span.SetStatus(codes.Error, "url not found")
 
+		failedIngestedHTTPRequestsCounter.Inc()
 		logger.WithError(err).Error("could not find dump url by reference")
 		_ = render.Render(w, r, newAPIError(http.StatusInternalServerError,
 			"an error occurred while ingesting HTTP request"))
@@ -111,6 +113,7 @@ func (u *urlHandler) ingest(w http.ResponseWriter, r *http.Request) {
 
 	size, err := io.Copy(s, r.Body)
 	if err != nil {
+		failedIngestedHTTPRequestsCounter.Inc()
 		msg := "could not copy request body"
 		status := http.StatusInternalServerError
 		if maxErr, ok := err.(*http.MaxBytesError); ok {
@@ -137,12 +140,15 @@ func (u *urlHandler) ingest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := u.ingestRepo.Create(ctx, ingestedRequest); err != nil {
+		failedIngestedHTTPRequestsCounter.Inc()
 		logger.WithError(err).Error("could not ingest request")
 		span.SetStatus(codes.Error, "could not ingest request")
 		_ = render.Render(w, r, newAPIError(http.StatusInternalServerError,
 			"an error occurred while ingesting request"))
 		return
 	}
+
+	ingestedHTTPRequestsCounter.Inc()
 
 	go func() {
 		if !u.sseServer.StreamExists(endpoint.PubChannel()) {

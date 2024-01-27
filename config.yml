@@ -12,3 +12,4 @@ http:
   prometheus:
     username: sdump
     password: sdump
+    is_enabled: true
