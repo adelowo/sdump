@@ -2,10 +2,12 @@ log: debug
 
 ssh:
   port: 2222
+  identities:
+    - "id_ed25519"
 
 http:
   port: 4200
-  domain: https://sdump.app
+  domain: http://localhost:4200
   database:
     dsn: postgres://sdump:sdump@localhost:3432/sdump?sslmode=disable
 

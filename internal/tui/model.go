@@ -7,11 +7,13 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/adelowo/sdump/config"
+	"github.com/adelowo/sdump/internal/util"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/table"
@@ -20,6 +22,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/r3labs/sse/v2"
 	"golang.design/x/clipboard"
+	"golang.org/x/term"
 )
 
 type model struct {
@@ -41,20 +44,36 @@ type model struct {
 
 	headersTable  table.Model
 	width, height int
+
+	sshFingerPrint string
 }
 
-func InitialModel(cfg *config.Config, width, height int) model {
-	s := table.DefaultStyles()
-	s.Header = s.Header.
-		BorderStyle(lipgloss.NormalBorder()).
-		BorderForeground(lipgloss.Color("240")).
-		BorderBottom(true).
-		Bold(false)
-	s.Selected = s.Selected.
-		Foreground(lipgloss.Color("229")).
-		Background(lipgloss.Color("57")).
-		Bold(false)
+func New(cfg *config.Config,
+	opts ...Option,
+) (tea.Model, error) {
+	width, height, err := term.GetSize(int(os.Stderr.Fd()))
+	if err != nil {
+		return nil, err
+	}
 
+	tuiModel := newModel(cfg, width, height)
+
+	for _, opt := range opts {
+		opt(&tuiModel)
+	}
+
+	if util.IsStringEmpty(tuiModel.sshFingerPrint) {
+		return nil, errors.New("SSH fingerprint must be provided")
+	}
+
+	if tuiModel.width <= 0 || tuiModel.height <= 0 {
+		return nil, errors.New("width or height must be a non zero number")
+	}
+
+	return tuiModel, nil
+}
+
+func newModel(cfg *config.Config, width, height int) model {
 	columns := []table.Column{
 		{
 			Title: "Header",
@@ -91,7 +110,7 @@ func InitialModel(cfg *config.Config, width, height int) model {
 			table.WithHeight(10),
 			table.WithWidth(width),
 			table.WithKeyMap(table.KeyMap{}),
-			table.WithStyles(s)),
+			table.WithStyles(getTableStyles())),
 	}
 
 	m.requestList.Title = "Incoming requests"
@@ -146,7 +165,7 @@ func (m model) createEndpoint() tea.Msg {
 	// err can be safely ignored
 	req, _ := http.NewRequest(http.MethodPost,
 		m.cfg.HTTP.Domain,
-		strings.NewReader("{}"))
+		strings.NewReader(fmt.Sprintf(`{"fingerprint" : "%s"}`, m.sshFingerPrint)))
 
 	req.Header.Add("Content-Type", "application/json")
 

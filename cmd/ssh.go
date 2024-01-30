@@ -32,6 +32,12 @@ func createSSHCommand(rootCmd *cobra.Command, cfg *config.Config) {
 					bm.Middleware(teaHandler(cfg)),
 					lm.Middleware(),
 				),
+				wish.WithPublicKeyAuth(func(_ ssh.Context, pubKey ssh.PublicKey) bool {
+					// allow all public keys go true
+					// TODO: implement public key authentication
+
+					return true
+				}),
 			)
 			if err != nil {
 				return err
@@ -81,13 +87,25 @@ func createSSHCommand(rootCmd *cobra.Command, cfg *config.Config) {
 
 func teaHandler(cfg *config.Config) func(s ssh.Session) (tea.Model, []tea.ProgramOption) {
 	return func(s ssh.Session) (tea.Model, []tea.ProgramOption) {
-		pty, _, active := s.Pty()
-		if !active {
-			wish.Fatalln(s, "no active terminal, skipping")
+		pty, _, _ := s.Pty()
+		// if !active {
+		// 	wish.Fatalln(s, "no active terminal, skipping")
+		// 	return nil, nil
+		// }
+
+		sshFingerPrint := gossh.FingerprintSHA256(s.PublicKey())
+
+		tuiModel, err := tui.New(cfg,
+			tui.WithWidth(pty.Window.Width),
+			tui.WithHeight(pty.Window.Height),
+			tui.WithSSHFingerPrint(sshFingerPrint),
+		)
+		if err != nil {
+			wish.Fatalln(s, fmt.Errorf("%v...Could not set up TUI session..", err))
 			return nil, nil
 		}
 
-		return tui.InitialModel(cfg, pty.Window.Width, pty.Window.Height),
+		return tuiModel,
 			[]tea.ProgramOption{tea.WithAltScreen()}
 	}
 }
