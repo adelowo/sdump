@@ -24,6 +24,7 @@ type URLEndpoint struct {
 	ID        uuid.UUID `bun:"type:uuid,default:uuid_generate_v4()" json:"id,omitempty"`
 	Reference string    `json:"reference,omitempty"`
 	IsActive  bool      `json:"is_active,omitempty"`
+	UserID    uuid.UUID `json:"user_id,omitempty"`
 
 	Metadata URLEndpointMetadata `json:"metadata,omitempty"`
 

@@ -15,6 +15,7 @@ import (
 	"github.com/adelowo/sdump/internal/util"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
+	"github.com/google/uuid"
 	"github.com/r3labs/sse/v2"
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/codes"
@@ -24,8 +25,13 @@ type urlHandler struct {
 	logger     *logrus.Entry
 	urlRepo    sdump.URLRepository
 	ingestRepo sdump.IngestRepository
+	userRepo   sdump.UserRepository
 	cfg        config.Config
 	sseServer  *sse.Server
+}
+
+type createURLRequest struct {
+	SSHFingerprint string `json:"ssh_fingerprint,omitempty"`
 }
 
 func (u *urlHandler) create(w http.ResponseWriter, r *http.Request) {
@@ -36,6 +42,25 @@ func (u *urlHandler) create(w http.ResponseWriter, r *http.Request) {
 		WithField("request_id", requestID)
 
 	logger.Debug("Creating new url endpoint")
+
+	req := new(createURLRequest)
+
+	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
+		span.SetStatus(codes.Error, "invalid request body")
+		_ = render.Render(w, r, newAPIError(http.StatusBadRequest, "please provide a valid request body"))
+		return
+	}
+
+	var userID uuid.UUID
+
+	if !util.IsStringEmpty(req.SSHFingerprint) {
+		user, err := u.userRepo.Find(ctx, &sdump.FindUserOptions{
+			SSHKeyFingerprint: req.SSHFingerprint,
+		})
+
+		_, _ = userID, err
+		userID = user.ID
+	}
 
 	endpoint := sdump.NewURLEndpoint()
 
