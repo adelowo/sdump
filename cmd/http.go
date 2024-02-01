@@ -59,7 +59,6 @@ func createHTTPCommand(cmd *cobra.Command, cfg *config.Config) {
 			urlStore := postgres.NewURLRepositoryTable(db)
 			ingestStore := postgres.NewIngestRepository(db)
 			userStore := postgres.NewUserRepositoryTable(db)
-			planStore := postgres.NewPlanRepositoryTable(db)
 
 			hostName, err := os.Hostname()
 			if err != nil {
@@ -72,7 +71,7 @@ func createHTTPCommand(cmd *cobra.Command, cfg *config.Config) {
 			sseServer := sse.New()
 
 			httpServer := httpd.New(*cfg, urlStore, ingestStore,
-				userStore, planStore, logger, sseServer)
+				userStore, logger, sseServer)
 
 			go func() {
 				logger.Debug("starting HTTP server")

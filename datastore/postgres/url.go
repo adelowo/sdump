@@ -50,3 +50,20 @@ func (u *urlRepositoryTable) Get(ctx context.Context,
 
 	return res, err
 }
+
+func (u *urlRepositoryTable) Latest(ctx context.Context, userID uuid.UUID) (
+	*sdump.URLEndpoint, error,
+) {
+	ret := new(sdump.URLEndpoint)
+
+	err := bun.NewSelectQuery(u.inner).Model(ret).
+		Order("created_at DESC").
+		Limit(1).
+		Scan(ctx)
+
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, sdump.ErrURLEndpointNotFound
+	}
+
+	return ret, err
+}

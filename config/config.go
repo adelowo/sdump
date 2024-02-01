@@ -47,11 +47,6 @@ type HTTPConfig struct {
 		Password  string `json:"password,omitempty" mapstructure:"password" yaml:"password"`
 		IsEnabled bool   `json:"is_enabled,omitempty" mapstructure:"is_enabled" yaml:"is_enabled"`
 	} `json:"prometheus,omitempty" mapstructure:"prometheus" yaml:"prometheus"`
-
-	// This is the default plan/allowances that users should have
-	Allowances struct {
-		HumanReadableName string `json:"human_readable_name,omitempty" yaml:"human_readable_name"`
-	} `json:"allowances,omitempty" yaml:"allowances"`
 }
 
 type TUIConfig struct {

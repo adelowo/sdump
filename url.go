@@ -53,4 +53,5 @@ type FindURLOptions struct {
 type URLRepository interface {
 	Create(context.Context, *URLEndpoint) error
 	Get(context.Context, *FindURLOptions) (*URLEndpoint, error)
+	Latest(context.Context, uuid.UUID) (*URLEndpoint, error)
 }
