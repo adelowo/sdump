@@ -129,7 +129,7 @@ func (m model) Init() tea.Cmd {
 	tea.SetWindowTitle(m.title)
 
 	return tea.Batch(m.spinner.Tick,
-		m.createEndpoint)
+		m.createEndpoint(false))
 }
 
 func (m model) listenForNextItem() tea.Msg {
@@ -161,37 +161,40 @@ func (m model) waitForNextItem() tea.Msg {
 	return ItemMsg{item: <-m.receiveChan}
 }
 
-func (m model) createEndpoint() tea.Msg {
-	// err can be safely ignored
-	req, _ := http.NewRequest(http.MethodPost,
-		m.cfg.HTTP.Domain,
-		strings.NewReader(fmt.Sprintf(`{"ssh_fingerprint" : "%s"}`, m.sshFingerPrint)))
+func (m model) createEndpoint(forceURLChange bool) func() tea.Msg {
+	return func() tea.Msg {
+		// err can be safely ignored
+		req, _ := http.NewRequest(http.MethodPost,
+			m.cfg.HTTP.Domain,
+			strings.NewReader(fmt.Sprintf(`{"ssh_fingerprint" : "%s","force_new_endpoint" : %v}`,
+				m.sshFingerPrint, forceURLChange)))
 
-	req.Header.Add("Content-Type", "application/json")
+		req.Header.Add("Content-Type", "application/json")
 
-	resp, err := m.httpClient.Do(req)
-	if err != nil {
-		return ErrorMsg{err: err}
-	}
+		resp, err := m.httpClient.Do(req)
+		if err != nil {
+			return ErrorMsg{err: err}
+		}
 
-	defer resp.Body.Close()
+		defer resp.Body.Close()
 
-	var response struct {
-		URL struct {
-			HumanReadableEndpoint string `json:"human_readable_endpoint,omitempty"`
-		} `json:"url,omitempty"`
-		SSE struct {
-			Channel string `json:"channel,omitempty"`
-		} `json:"sse,omitempty"`
-	}
+		var response struct {
+			URL struct {
+				HumanReadableEndpoint string `json:"human_readable_endpoint,omitempty"`
+			} `json:"url,omitempty"`
+			SSE struct {
+				Channel string `json:"channel,omitempty"`
+			} `json:"sse,omitempty"`
+		}
 
-	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
-		return ErrorMsg{err: err}
-	}
+		if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+			return ErrorMsg{err: err}
+		}
 
-	return DumpURLMsg{
-		URL:        response.URL.HumanReadableEndpoint,
-		SSEChannel: response.SSE.Channel,
+		return DumpURLMsg{
+			URL:        response.URL.HumanReadableEndpoint,
+			SSEChannel: response.SSE.Channel,
+		}
 	}
 }
 
@@ -248,6 +251,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyMsg:
 		switch msg.Type {
+		case tea.KeyCtrlR:
+
+			m.dumpURL = nil
+			m.requestList.SetItems([]list.Item{})
+
+			return m, m.createEndpoint(true)
+
 		case tea.KeyCtrlY:
 
 			_ = clipboard.Write(clipboard.FmtText, []byte(m.dumpURL.String()))
@@ -314,7 +324,7 @@ func (m model) buildView() string {
 		lipgloss.NewStyle().Padding(0, 0).
 			Render(lipgloss.JoinHorizontal(lipgloss.Center,
 				m.headersTable.View(), ""),
-				lipgloss.NewStyle().Margin(3, 0, 0, 0).
+				lipgloss.NewStyle().Margin(1, 0, 0, 0).
 					Render(m.detailedRequestView.View())))
 }
 
