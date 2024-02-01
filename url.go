@@ -37,10 +37,11 @@ type URLEndpoint struct {
 
 func (u *URLEndpoint) PubChannel() string { return fmt.Sprintf("messages.%s", u.Reference) }
 
-func NewURLEndpoint() *URLEndpoint {
+func NewURLEndpoint(userID uuid.UUID) *URLEndpoint {
 	return &URLEndpoint{
 		Reference: xid.New().String(),
 		IsActive:  true,
+		UserID:    userID,
 	}
 }
 

@@ -165,7 +165,7 @@ func (m model) createEndpoint() tea.Msg {
 	// err can be safely ignored
 	req, _ := http.NewRequest(http.MethodPost,
 		m.cfg.HTTP.Domain,
-		strings.NewReader(fmt.Sprintf(`{"fingerprint" : "%s"}`, m.sshFingerPrint)))
+		strings.NewReader(fmt.Sprintf(`{"ssh_fingerprint" : "%s"}`, m.sshFingerPrint)))
 
 	req.Header.Add("Content-Type", "application/json")
 

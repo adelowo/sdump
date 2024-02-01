@@ -25,6 +25,7 @@ type urlHandler struct {
 	logger     *logrus.Entry
 	urlRepo    sdump.URLRepository
 	ingestRepo sdump.IngestRepository
+	planRepo   sdump.PlanRepository
 	userRepo   sdump.UserRepository
 	cfg        config.Config
 	sseServer  *sse.Server
@@ -51,18 +52,65 @@ func (u *urlHandler) create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var userID uuid.UUID
+	var userID uuid.UUID = uuid.Nil
 
 	if !util.IsStringEmpty(req.SSHFingerprint) {
+
 		user, err := u.userRepo.Find(ctx, &sdump.FindUserOptions{
 			SSHKeyFingerprint: req.SSHFingerprint,
 		})
 
-		_, _ = userID, err
-		userID = user.ID
+		if err != nil && !errors.Is(err, sdump.ErrUserNotFound) {
+
+			logger.WithError(err).Error("could not find user from database")
+			span.SetStatus(codes.Error, "could not find user from database")
+			_ = render.Render(w, r, newAPIError(http.StatusInternalServerError, "could not find user from database"))
+			return
+		}
+
+		switch err {
+		case sdump.ErrUserNotFound:
+
+			plan, err := u.planRepo.Get(ctx, &sdump.FindPlanOptions{
+				HumanReadableName: u.cfg.HTTP.Allowances.HumanReadableName,
+			})
+			if errors.Is(err, sdump.ErrPlanNotFound) {
+				span.SetStatus(codes.Error, err.Error())
+				_ = render.Render(w, r, newAPIError(http.StatusInternalServerError, err.Error()))
+				return
+			}
+
+			if err != nil {
+				logger.WithError(err).Error("could not fetch default plan")
+				_ = render.Render(w, r, newAPIError(http.StatusInternalServerError, "error occurred while fetching plan for user"))
+				return
+			}
+
+			user := &sdump.User{
+				SSHFingerPrint: req.SSHFingerprint,
+				IsBanned:       false,
+				PlanID:         plan.ID,
+			}
+
+			err = u.userRepo.Create(ctx, user)
+			if err != nil {
+				span.SetStatus(codes.Error, "could not create user")
+				logger.WithError(err).
+					WithField("ssh_fingerprint", req.SSHFingerprint).
+					Error("could not create user")
+
+				_ = render.Render(w, r, newAPIError(http.StatusInternalServerError, "an error occurred while storing your ssh fingerprint"))
+				return
+			}
+
+			userID = user.ID
+
+		default:
+			userID = user.ID
+		}
 	}
 
-	endpoint := sdump.NewURLEndpoint()
+	endpoint := sdump.NewURLEndpoint(userID)
 
 	if err := u.urlRepo.Create(ctx, endpoint); err != nil {
 		logger.WithError(err).Error("could not create url endpoint")

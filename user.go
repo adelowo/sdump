@@ -10,6 +10,7 @@ import (
 
 const (
 	ErrPlanNotFound     = appError("plan does not exists")
+	ErrUserNotFound     = appError("user not found")
 	ErrCounterExhausted = appError("no more units left")
 )
 
@@ -73,4 +74,12 @@ type FindUserOptions struct {
 type UserRepository interface {
 	Create(context.Context, *User) error
 	Find(context.Context, *FindUserOptions) (*User, error)
+}
+
+type FindPlanOptions struct {
+	HumanReadableName string
+}
+
+type PlanRepository interface {
+	Get(context.Context, *FindPlanOptions) (*Plan, error)
 }
