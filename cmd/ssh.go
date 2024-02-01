@@ -87,11 +87,11 @@ func createSSHCommand(rootCmd *cobra.Command, cfg *config.Config) {
 
 func teaHandler(cfg *config.Config) func(s ssh.Session) (tea.Model, []tea.ProgramOption) {
 	return func(s ssh.Session) (tea.Model, []tea.ProgramOption) {
-		pty, _, _ := s.Pty()
-		// if !active {
-		// 	wish.Fatalln(s, "no active terminal, skipping")
-		// 	return nil, nil
-		// }
+		pty, _, active := s.Pty()
+		if !active {
+			wish.Fatalln(s, "no active terminal, skipping")
+			return nil, nil
+		}
 
 		sshFingerPrint := gossh.FingerprintSHA256(s.PublicKey())
 

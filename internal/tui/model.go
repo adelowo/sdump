@@ -100,7 +100,7 @@ func newModel(cfg *config.Config, width, height int) model {
 		},
 
 		requestList:               list.New([]list.Item{}, list.NewDefaultDelegate(), 50, height),
-		detailedRequestView:       viewport.New(width, height-heightOffset(height)),
+		detailedRequestView:       viewport.New(width, height),
 		detailedRequestViewBuffer: bytes.NewBuffer(nil),
 		sseClient:                 sse.NewClient(fmt.Sprintf("%s/events", cfg.HTTP.Domain)),
 		receiveChan:               make(chan item),
@@ -196,14 +196,6 @@ func (m model) createEndpoint(forceURLChange bool) func() tea.Msg {
 			SSEChannel: response.SSE.Channel,
 		}
 	}
-}
-
-func heightOffset(v int) int {
-	if v > 35 {
-		return 25
-	}
-
-	return 17
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
