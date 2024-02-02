@@ -24,6 +24,7 @@ type URLEndpoint struct {
 	ID        uuid.UUID `bun:"type:uuid,default:uuid_generate_v4()" json:"id,omitempty"`
 	Reference string    `json:"reference,omitempty"`
 	IsActive  bool      `json:"is_active,omitempty"`
+	UserID    uuid.UUID `json:"user_id,omitempty"`
 
 	Metadata URLEndpointMetadata `json:"metadata,omitempty"`
 
@@ -36,10 +37,11 @@ type URLEndpoint struct {
 
 func (u *URLEndpoint) PubChannel() string { return fmt.Sprintf("messages.%s", u.Reference) }
 
-func NewURLEndpoint() *URLEndpoint {
+func NewURLEndpoint(userID uuid.UUID) *URLEndpoint {
 	return &URLEndpoint{
 		Reference: xid.New().String(),
 		IsActive:  true,
+		UserID:    userID,
 	}
 }
 
@@ -51,4 +53,5 @@ type FindURLOptions struct {
 type URLRepository interface {
 	Create(context.Context, *URLEndpoint) error
 	Get(context.Context, *FindURLOptions) (*URLEndpoint, error)
+	Latest(context.Context, uuid.UUID) (*URLEndpoint, error)
 }

@@ -37,12 +37,14 @@ var failedIngestedHTTPRequestsCounter = prometheus.NewCounter(prometheus.Counter
 func New(cfg config.Config,
 	urlRepo sdump.URLRepository,
 	ingestRepo sdump.IngestRepository,
+	userRepo sdump.UserRepository,
 	logger *logrus.Entry,
 	sseServer *sse.Server,
 ) *http.Server {
 	return &http.Server{
-		Handler: buildRoutes(cfg, logger, urlRepo, ingestRepo, sseServer),
-		Addr:    fmt.Sprintf(":%d", cfg.HTTP.Port),
+		Handler: buildRoutes(cfg, logger, urlRepo, ingestRepo,
+			userRepo, sseServer),
+		Addr: fmt.Sprintf(":%d", cfg.HTTP.Port),
 	}
 }
 
@@ -50,6 +52,7 @@ func buildRoutes(cfg config.Config,
 	logger *logrus.Entry,
 	urlRepo sdump.URLRepository,
 	ingestRepo sdump.IngestRepository,
+	userRepo sdump.UserRepository,
 	sseServer *sse.Server,
 ) http.Handler {
 	router := chi.NewRouter()
@@ -64,6 +67,7 @@ func buildRoutes(cfg config.Config,
 		urlRepo:    urlRepo,
 		logger:     logger,
 		ingestRepo: ingestRepo,
+		userRepo:   userRepo,
 		sseServer:  sseServer,
 	}
 

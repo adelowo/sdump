@@ -6,19 +6,13 @@ import (
 	"io"
 
 	"github.com/alecthomas/chroma/v2/quick"
+	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/lipgloss"
 )
 
 var (
-	color = lipgloss.AdaptiveColor{Light: "#111222", Dark: "#FAFAFA"}
-	// primaryColor = lipgloss.Color("#4636f5")
-	// greenColor   = lipgloss.Color("#9dcc3a")
-	// redColor     = lipgloss.Color("#ff0000")
-	// whiteColor   = lipgloss.Color("#ffffff")
-	// blackColor   = lipgloss.Color("#000000")
-	// orangeColor  = lipgloss.Color("#D3A347")
-	feintColor = lipgloss.AdaptiveColor{Light: "#333333", Dark: "#888888"}
-	// fuschiaColor   = lipgloss.Color("#EF5DA8")
+	color          = lipgloss.AdaptiveColor{Light: "#111222", Dark: "#FAFAFA"}
+	feintColor     = lipgloss.AdaptiveColor{Light: "#333333", Dark: "#888888"}
 	faintBuleColor = lipgloss.Color("#428BCA")
 
 	errorStyle = lipgloss.NewStyle().BorderForeground(lipgloss.Color("9")).
@@ -29,6 +23,21 @@ var (
 
 	defaultTextStyle = lipgloss.NewStyle().Foreground(color)
 )
+
+func getTableStyles() table.Styles {
+	s := table.DefaultStyles()
+	s.Header = s.Header.
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderForeground(lipgloss.Color("240")).
+		BorderBottom(true).
+		Bold(false)
+	s.Selected = s.Selected.
+		Foreground(lipgloss.Color("229")).
+		Background(lipgloss.Color("57")).
+		Bold(false)
+
+	return s
+}
 
 func showError(err error) string {
 	return errorStyle.Render(lipgloss.Place(200, 3, lipgloss.Center, lipgloss.Center,

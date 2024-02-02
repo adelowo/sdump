@@ -2,6 +2,7 @@ package httpd
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,6 +16,7 @@ import (
 	"github.com/adelowo/sdump/internal/util"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
+	"github.com/google/uuid"
 	"github.com/r3labs/sse/v2"
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/codes"
@@ -24,8 +26,14 @@ type urlHandler struct {
 	logger     *logrus.Entry
 	urlRepo    sdump.URLRepository
 	ingestRepo sdump.IngestRepository
+	userRepo   sdump.UserRepository
 	cfg        config.Config
 	sseServer  *sse.Server
+}
+
+type createURLRequest struct {
+	SSHFingerprint   string `json:"ssh_fingerprint,omitempty"`
+	ForceNewEndpoint bool   `json:"force_new_endpoint,omitempty"`
 }
 
 func (u *urlHandler) create(w http.ResponseWriter, r *http.Request) {
@@ -37,9 +45,63 @@ func (u *urlHandler) create(w http.ResponseWriter, r *http.Request) {
 
 	logger.Debug("Creating new url endpoint")
 
-	endpoint := sdump.NewURLEndpoint()
+	req := new(createURLRequest)
 
-	if err := u.urlRepo.Create(ctx, endpoint); err != nil {
+	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
+		span.SetStatus(codes.Error, "invalid request body")
+		_ = render.Render(w, r, newAPIError(http.StatusBadRequest, "please provide a valid request body"))
+		return
+	}
+
+	if util.IsStringEmpty(req.SSHFingerprint) {
+		span.SetStatus(codes.Error, "please provide ssh fingerprint")
+		_ = render.Render(w, r, newAPIError(http.StatusBadRequest, "please provide your ssh fingerprint"))
+		return
+	}
+
+	user, err := u.userRepo.Find(ctx, &sdump.FindUserOptions{
+		SSHKeyFingerprint: req.SSHFingerprint,
+	})
+
+	if err != nil && !errors.Is(err, sdump.ErrUserNotFound) {
+
+		logger.WithError(err).Error("could not find user from database")
+		span.SetStatus(codes.Error, "could not find user from database")
+		_ = render.Render(w, r, newAPIError(http.StatusInternalServerError, "could not find user from database"))
+		return
+	}
+
+	var userID uuid.UUID
+
+	switch err {
+
+	default:
+		userID = user.ID
+
+	case sdump.ErrUserNotFound:
+
+		user := &sdump.User{
+			SSHFingerPrint: req.SSHFingerprint,
+			IsBanned:       false,
+		}
+
+		err = u.userRepo.Create(ctx, user)
+		if err != nil {
+			span.SetStatus(codes.Error, "could not create user")
+			logger.WithError(err).
+				WithField("ssh_fingerprint", req.SSHFingerprint).
+				Error("could not create user")
+
+			_ = render.Render(w, r, newAPIError(http.StatusInternalServerError, "an error occurred while storing your ssh fingerprint"))
+			return
+		}
+
+		userID = user.ID
+	}
+
+	endpoint, err := u.createOrFetchEndpoint(ctx, sdump.NewURLEndpoint(userID), req.ForceNewEndpoint)
+	if err != nil {
+
 		logger.WithError(err).Error("could not create url endpoint")
 
 		span.SetStatus(codes.Error, "could not create url endpoint")
@@ -73,6 +135,31 @@ func (u *urlHandler) create(w http.ResponseWriter, r *http.Request) {
 				u.cfg.HTTP.Domain, endpoint.Reference),
 		},
 	})
+}
+
+func (u *urlHandler) createOrFetchEndpoint(
+	ctx context.Context,
+	endpoint *sdump.URLEndpoint,
+	forceRefresh bool,
+) (*sdump.URLEndpoint, error) {
+	if forceRefresh {
+		return endpoint, u.urlRepo.Create(ctx, endpoint)
+	}
+
+	lastUsedEndpoint, err := u.urlRepo.Latest(ctx, endpoint.UserID)
+	if err == nil {
+		return lastUsedEndpoint, nil
+	}
+
+	if errors.Is(err, sdump.ErrURLEndpointNotFound) {
+		if err := u.urlRepo.Create(ctx, endpoint); err != nil {
+			return nil, err
+		}
+
+		return endpoint, nil
+	}
+
+	return endpoint, err
 }
 
 func (u *urlHandler) ingest(w http.ResponseWriter, r *http.Request) {

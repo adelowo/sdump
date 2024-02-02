@@ -7,11 +7,13 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/adelowo/sdump/config"
+	"github.com/adelowo/sdump/internal/util"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/table"
@@ -20,6 +22,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/r3labs/sse/v2"
 	"golang.design/x/clipboard"
+	"golang.org/x/term"
 )
 
 type model struct {
@@ -41,20 +44,36 @@ type model struct {
 
 	headersTable  table.Model
 	width, height int
+
+	sshFingerPrint string
 }
 
-func InitialModel(cfg *config.Config, width, height int) model {
-	s := table.DefaultStyles()
-	s.Header = s.Header.
-		BorderStyle(lipgloss.NormalBorder()).
-		BorderForeground(lipgloss.Color("240")).
-		BorderBottom(true).
-		Bold(false)
-	s.Selected = s.Selected.
-		Foreground(lipgloss.Color("229")).
-		Background(lipgloss.Color("57")).
-		Bold(false)
+func New(cfg *config.Config,
+	opts ...Option,
+) (tea.Model, error) {
+	width, height, err := term.GetSize(int(os.Stderr.Fd()))
+	if err != nil {
+		return nil, err
+	}
 
+	tuiModel := newModel(cfg, width, height)
+
+	for _, opt := range opts {
+		opt(&tuiModel)
+	}
+
+	if util.IsStringEmpty(tuiModel.sshFingerPrint) {
+		return nil, errors.New("SSH fingerprint must be provided")
+	}
+
+	if tuiModel.width <= 0 || tuiModel.height <= 0 {
+		return nil, errors.New("width or height must be a non zero number")
+	}
+
+	return tuiModel, nil
+}
+
+func newModel(cfg *config.Config, width, height int) model {
 	columns := []table.Column{
 		{
 			Title: "Header",
@@ -81,7 +100,7 @@ func InitialModel(cfg *config.Config, width, height int) model {
 		},
 
 		requestList:               list.New([]list.Item{}, list.NewDefaultDelegate(), 50, height),
-		detailedRequestView:       viewport.New(width, height-heightOffset(height)),
+		detailedRequestView:       viewport.New(width, height),
 		detailedRequestViewBuffer: bytes.NewBuffer(nil),
 		sseClient:                 sse.NewClient(fmt.Sprintf("%s/events", cfg.HTTP.Domain)),
 		receiveChan:               make(chan item),
@@ -91,7 +110,7 @@ func InitialModel(cfg *config.Config, width, height int) model {
 			table.WithHeight(10),
 			table.WithWidth(width),
 			table.WithKeyMap(table.KeyMap{}),
-			table.WithStyles(s)),
+			table.WithStyles(getTableStyles())),
 	}
 
 	m.requestList.Title = "Incoming requests"
@@ -110,7 +129,7 @@ func (m model) Init() tea.Cmd {
 	tea.SetWindowTitle(m.title)
 
 	return tea.Batch(m.spinner.Tick,
-		m.createEndpoint)
+		m.createEndpoint(false))
 }
 
 func (m model) listenForNextItem() tea.Msg {
@@ -142,46 +161,41 @@ func (m model) waitForNextItem() tea.Msg {
 	return ItemMsg{item: <-m.receiveChan}
 }
 
-func (m model) createEndpoint() tea.Msg {
-	// err can be safely ignored
-	req, _ := http.NewRequest(http.MethodPost,
-		m.cfg.HTTP.Domain,
-		strings.NewReader("{}"))
+func (m model) createEndpoint(forceURLChange bool) func() tea.Msg {
+	return func() tea.Msg {
+		// err can be safely ignored
+		req, _ := http.NewRequest(http.MethodPost,
+			m.cfg.HTTP.Domain,
+			strings.NewReader(fmt.Sprintf(`{"ssh_fingerprint" : "%s","force_new_endpoint" : %v}`,
+				m.sshFingerPrint, forceURLChange)))
 
-	req.Header.Add("Content-Type", "application/json")
+		req.Header.Add("Content-Type", "application/json")
 
-	resp, err := m.httpClient.Do(req)
-	if err != nil {
-		return ErrorMsg{err: err}
+		resp, err := m.httpClient.Do(req)
+		if err != nil {
+			return ErrorMsg{err: err}
+		}
+
+		defer resp.Body.Close()
+
+		var response struct {
+			URL struct {
+				HumanReadableEndpoint string `json:"human_readable_endpoint,omitempty"`
+			} `json:"url,omitempty"`
+			SSE struct {
+				Channel string `json:"channel,omitempty"`
+			} `json:"sse,omitempty"`
+		}
+
+		if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+			return ErrorMsg{err: err}
+		}
+
+		return DumpURLMsg{
+			URL:        response.URL.HumanReadableEndpoint,
+			SSEChannel: response.SSE.Channel,
+		}
 	}
-
-	defer resp.Body.Close()
-
-	var response struct {
-		URL struct {
-			HumanReadableEndpoint string `json:"human_readable_endpoint,omitempty"`
-		} `json:"url,omitempty"`
-		SSE struct {
-			Channel string `json:"channel,omitempty"`
-		} `json:"sse,omitempty"`
-	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
-		return ErrorMsg{err: err}
-	}
-
-	return DumpURLMsg{
-		URL:        response.URL.HumanReadableEndpoint,
-		SSEChannel: response.SSE.Channel,
-	}
-}
-
-func heightOffset(v int) int {
-	if v > 35 {
-		return 25
-	}
-
-	return 17
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -229,6 +243,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyMsg:
 		switch msg.Type {
+		case tea.KeyCtrlR:
+
+			m.dumpURL = nil
+			m.requestList.SetItems([]list.Item{})
+
+			return m, m.createEndpoint(true)
+
 		case tea.KeyCtrlY:
 
 			_ = clipboard.Write(clipboard.FmtText, []byte(m.dumpURL.String()))
@@ -295,7 +316,7 @@ func (m model) buildView() string {
 		lipgloss.NewStyle().Padding(0, 0).
 			Render(lipgloss.JoinHorizontal(lipgloss.Center,
 				m.headersTable.View(), ""),
-				lipgloss.NewStyle().Margin(3, 0, 0, 0).
+				lipgloss.NewStyle().Margin(1, 0, 0, 0).
 					Render(m.detailedRequestView.View())))
 }
 

@@ -32,6 +32,12 @@ func createSSHCommand(rootCmd *cobra.Command, cfg *config.Config) {
 					bm.Middleware(teaHandler(cfg)),
 					lm.Middleware(),
 				),
+				wish.WithPublicKeyAuth(func(_ ssh.Context, pubKey ssh.PublicKey) bool {
+					// allow all public keys go true
+					// TODO: implement public key authentication
+
+					return true
+				}),
 			)
 			if err != nil {
 				return err
@@ -87,7 +93,19 @@ func teaHandler(cfg *config.Config) func(s ssh.Session) (tea.Model, []tea.Progra
 			return nil, nil
 		}
 
-		return tui.InitialModel(cfg, pty.Window.Width, pty.Window.Height),
+		sshFingerPrint := gossh.FingerprintSHA256(s.PublicKey())
+
+		tuiModel, err := tui.New(cfg,
+			tui.WithWidth(pty.Window.Width),
+			tui.WithHeight(pty.Window.Height),
+			tui.WithSSHFingerPrint(sshFingerPrint),
+		)
+		if err != nil {
+			wish.Fatalln(s, fmt.Errorf("%v...Could not set up TUI session..", err))
+			return nil, nil
+		}
+
+		return tuiModel,
 			[]tea.ProgramOption{tea.WithAltScreen()}
 	}
 }

@@ -58,6 +58,8 @@ func initializeConfig(cfg *config.Config) error {
 	viper.SetDefault("http.otel.use_tls", true)
 	viper.SetDefault("http.otel.service_name", "SDUMP")
 	viper.SetDefault("http.otel.endpoint", "localhost:9500")
+	// plan with name "free" should be the default one
+	viper.SetDefault("http.allowances.human_readable_name", "free")
 
 	viper.AddConfigPath(filepath.Join(homePath, ".config", defaultConfigFilePath))
 	viper.AddConfigPath(".")
