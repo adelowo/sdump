@@ -52,5 +52,5 @@ func TestURLRepositoryTable_Latest(t *testing.T) {
 	endpoint, err := urlStore.Latest(context.Background(), userID)
 	require.NoError(t, err)
 
-	require.Equal(t, endpoint.Reference, "cmltfm6g330l5l1vq110")
+	require.Equal(t, endpoint.Reference, "cmltg1eg330l5l1vq11g")
 }
