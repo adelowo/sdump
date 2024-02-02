@@ -71,7 +71,7 @@ func (u *urlHandler) create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID := uuid.Nil
+	var userID uuid.UUID
 
 	switch err {
 
