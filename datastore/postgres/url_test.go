@@ -12,13 +12,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// see users.yml
+var userID = uuid.MustParse("8511ac86-5079-42ae-a030-cb46e6dbfbda")
+
 func TestURLRepositoryTable_Create(t *testing.T) {
 	client, teardownFunc := setupDatabase(t)
 	defer teardownFunc()
 
 	urlStore := NewURLRepositoryTable(client)
 
-	require.NoError(t, urlStore.Create(context.Background(), sdump.NewURLEndpoint()))
+	require.NoError(t, urlStore.Create(context.Background(),
+		sdump.NewURLEndpoint(userID)))
 }
 
 func TestURLRepositoryTable_Get(t *testing.T) {
@@ -37,4 +41,16 @@ func TestURLRepositoryTable_Get(t *testing.T) {
 		Reference: "cmltfm6g330l5l1vq110", // see fixtures/urls.yml
 	})
 	require.NoError(t, err)
+}
+
+func TestURLRepositoryTable_Latest(t *testing.T) {
+	client, teardownFunc := setupDatabase(t)
+	defer teardownFunc()
+
+	urlStore := NewURLRepositoryTable(client)
+
+	endpoint, err := urlStore.Latest(context.Background(), userID)
+	require.NoError(t, err)
+
+	require.Equal(t, endpoint.Reference, "cmltfm6g330l5l1vq110")
 }
