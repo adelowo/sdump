@@ -143,9 +143,7 @@ func (u *urlHandler) createOrFetchEndpoint(
 	forceRefresh bool,
 ) (*sdump.URLEndpoint, error) {
 	if forceRefresh {
-		if err := u.urlRepo.Create(ctx, endpoint); err != nil {
-			return nil, err
-		}
+		return endpoint, u.urlRepo.Create(ctx, endpoint)
 	}
 
 	lastUsedEndpoint, err := u.urlRepo.Latest(ctx, endpoint.UserID)

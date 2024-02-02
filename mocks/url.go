@@ -14,6 +14,7 @@ import (
 	reflect "reflect"
 
 	sdump "github.com/adelowo/sdump"
+	uuid "github.com/google/uuid"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -67,4 +68,19 @@ func (m *MockURLRepository) Get(arg0 context.Context, arg1 *sdump.FindURLOptions
 func (mr *MockURLRepositoryMockRecorder) Get(arg0, arg1 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockURLRepository)(nil).Get), arg0, arg1)
+}
+
+// Latest mocks base method.
+func (m *MockURLRepository) Latest(arg0 context.Context, arg1 uuid.UUID) (*sdump.URLEndpoint, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Latest", arg0, arg1)
+	ret0, _ := ret[0].(*sdump.URLEndpoint)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Latest indicates an expected call of Latest.
+func (mr *MockURLRepositoryMockRecorder) Latest(arg0, arg1 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Latest", reflect.TypeOf((*MockURLRepository)(nil).Latest), arg0, arg1)
 }

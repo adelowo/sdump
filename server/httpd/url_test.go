@@ -39,9 +39,11 @@ func verifyMatch(t *testing.T, v interface{}) {
 
 func TestURLHandler_Create(t *testing.T) {
 	tt := []struct {
-		name               string
-		mockFn             func(urlRepo *mocks.MockURLRepository)
+		name   string
+		mockFn func(t *testing.T, urlRepo *mocks.MockURLRepository,
+			userRepo *mocks.MockUserRepository)
 		expectedStatusCode int
+		requestBody        createURLRequest
 
 		// sometimes data changes in the response, if this
 		// field is set to true, we will skip matching golden files
@@ -50,21 +52,154 @@ func TestURLHandler_Create(t *testing.T) {
 		hasDynamicData bool
 	}{
 		{
-			name: "could not create url",
-			mockFn: func(urlRepo *mocks.MockURLRepository) {
-				urlRepo.EXPECT().Create(gomock.Any(), gomock.Any()).
-					Times(1).Return(errors.New("could not create dump"))
+			name:               "ssh fingerprint not provided",
+			expectedStatusCode: http.StatusBadRequest,
+			mockFn: func(t *testing.T, _ *mocks.MockURLRepository, _ *mocks.MockUserRepository) {
 			},
-			expectedStatusCode: http.StatusInternalServerError,
 		},
 		{
-			name: "url was created",
-			mockFn: func(urlRepo *mocks.MockURLRepository) {
+			name: "error occured while fetching user by ssh fingerprint",
+			mockFn: func(t *testing.T, urlRepo *mocks.MockURLRepository,
+				userRepo *mocks.MockUserRepository,
+			) {
+				t.Helper()
+				userRepo.EXPECT().Find(gomock.Any(), gomock.Any()).
+					Times(1).
+					Return(nil, errors.New("could not fetch user"))
+			},
+			expectedStatusCode: http.StatusInternalServerError,
+			requestBody: createURLRequest{
+				SSHFingerprint: "sufojfpffhhofjfpjfo",
+			},
+		},
+		{
+			name: "user not found and could not be created also",
+			mockFn: func(t *testing.T, urlRepo *mocks.MockURLRepository,
+				userRepo *mocks.MockUserRepository,
+			) {
+				t.Helper()
+				userRepo.EXPECT().Find(gomock.Any(), gomock.Any()).
+					Times(1).
+					Return(nil, sdump.ErrUserNotFound)
+
+				userRepo.EXPECT().Create(gomock.Any(), gomock.Any()).
+					Times(1).
+					Return(errors.New("could not create user"))
+			},
+			expectedStatusCode: http.StatusInternalServerError,
+			requestBody: createURLRequest{
+				SSHFingerprint: "sufojfpffhhofjfpjfo",
+			},
+		},
+		{
+			name: "url could not be created",
+			mockFn: func(t *testing.T, urlRepo *mocks.MockURLRepository,
+				userRepo *mocks.MockUserRepository,
+			) {
+				t.Helper()
+				userRepo.EXPECT().Find(gomock.Any(), gomock.Any()).
+					Times(1).
+					Return(nil, sdump.ErrUserNotFound)
+
+				userRepo.EXPECT().Create(gomock.Any(), gomock.Any()).
+					Times(1).
+					Return(nil)
+
 				urlRepo.EXPECT().Create(gomock.Any(), gomock.Any()).
-					Times(1).Return(nil)
+					Times(1).
+					Return(errors.New("could not create url"))
+			},
+			expectedStatusCode: http.StatusInternalServerError,
+			requestBody: createURLRequest{
+				SSHFingerprint:   "sufojfpffhhofjfpjfo",
+				ForceNewEndpoint: true,
+			},
+		},
+		{
+			name:           "url was successfully created",
+			hasDynamicData: true,
+			mockFn: func(t *testing.T, urlRepo *mocks.MockURLRepository,
+				userRepo *mocks.MockUserRepository,
+			) {
+				t.Helper()
+				userRepo.EXPECT().Find(gomock.Any(), gomock.Any()).
+					Times(1).
+					Return(nil, sdump.ErrUserNotFound)
+
+				userRepo.EXPECT().Create(gomock.Any(), gomock.Any()).
+					Times(1).
+					Return(nil)
+
+				urlRepo.EXPECT().Create(gomock.Any(), gomock.Any()).
+					Times(1).
+					Return(nil)
 			},
 			expectedStatusCode: http.StatusOK,
-			hasDynamicData:     true,
+			requestBody: createURLRequest{
+				SSHFingerprint:   "sufojfpffhhofjfpjfo",
+				ForceNewEndpoint: true,
+			},
+		},
+		{
+			name: "user already exists, no need to create a new url. could not fetch existing url",
+			mockFn: func(t *testing.T, urlRepo *mocks.MockURLRepository,
+				userRepo *mocks.MockUserRepository,
+			) {
+				t.Helper()
+				userRepo.EXPECT().Find(gomock.Any(), gomock.Any()).
+					Times(1).
+					Return(&sdump.User{}, nil)
+
+				urlRepo.EXPECT().Latest(gomock.Any(), gomock.Any()).
+					Times(1).
+					Return(nil, errors.New("could not fetch latest url"))
+			},
+			expectedStatusCode: http.StatusInternalServerError,
+			requestBody: createURLRequest{
+				SSHFingerprint: "sufojfpffhhofjfpjfo",
+			},
+		},
+		{
+			name: "user already exists, no need to create a new url. existing url not found, could not create new one",
+			mockFn: func(t *testing.T, urlRepo *mocks.MockURLRepository,
+				userRepo *mocks.MockUserRepository,
+			) {
+				t.Helper()
+				userRepo.EXPECT().Find(gomock.Any(), gomock.Any()).
+					Times(1).
+					Return(&sdump.User{}, nil)
+
+				urlRepo.EXPECT().Latest(gomock.Any(), gomock.Any()).
+					Times(1).
+					Return(nil, sdump.ErrURLEndpointNotFound)
+
+				urlRepo.EXPECT().Create(gomock.Any(), gomock.Any()).
+					Times(1).Return(errors.New("could not create url"))
+			},
+			expectedStatusCode: http.StatusInternalServerError,
+			requestBody: createURLRequest{
+				SSHFingerprint: "sufojfpffhhofjfpjfo",
+			},
+		},
+		{
+			name:           "user already exists, no need to create a new url. existing url found",
+			hasDynamicData: true,
+			mockFn: func(t *testing.T, urlRepo *mocks.MockURLRepository,
+				userRepo *mocks.MockUserRepository,
+			) {
+				t.Helper()
+				userRepo.EXPECT().Find(gomock.Any(), gomock.Any()).
+					Times(1).
+					Return(&sdump.User{}, nil)
+
+				urlRepo.EXPECT().Latest(gomock.Any(), gomock.Any()).
+					Times(1).
+					Return(&sdump.URLEndpoint{}, nil)
+			},
+			expectedStatusCode: http.StatusOK,
+			requestBody: createURLRequest{
+				SSHFingerprint: "sufojfpffhhofjfpjfo",
+			},
 		},
 	}
 
@@ -72,7 +207,12 @@ func TestURLHandler_Create(t *testing.T) {
 		t.Run(v.name, func(t *testing.T) {
 			recorder := httptest.NewRecorder()
 
-			req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader("{}"))
+			b := new(bytes.Buffer)
+
+			err := json.NewEncoder(b).Encode(v.requestBody)
+			require.NoError(t, err)
+
+			req := httptest.NewRequest(http.MethodPost, "/", b)
 
 			logrus.SetOutput(io.Discard)
 
@@ -82,13 +222,15 @@ func TestURLHandler_Create(t *testing.T) {
 			defer ctrl.Finish()
 
 			urlRepo := mocks.NewMockURLRepository(ctrl)
+			userRepo := mocks.NewMockUserRepository(ctrl)
 
-			v.mockFn(urlRepo)
+			v.mockFn(t, urlRepo, userRepo)
 
 			u := &urlHandler{
 				logger:    logger,
 				cfg:       config.Config{},
 				urlRepo:   urlRepo,
+				userRepo:  userRepo,
 				sseServer: sse.New(),
 			}
 
