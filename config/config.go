@@ -51,8 +51,8 @@ type HTTPConfig struct {
 	} `json:"prometheus,omitempty" mapstructure:"prometheus" yaml:"prometheus"`
 
 	RateLimit struct {
-		RequestsPerMinute int64 `json:"requests_per_minute,omitempty"`
-	} `json:"rate_limit,omitempty"`
+		RequestsPerMinute int64 `json:"requests_per_minute,omitempty" mapstructure:"requests_per_minute"`
+	} `json:"rate_limit,omitempty" mapstructure:"rate_limit"`
 }
 
 type TUIConfig struct {

@@ -11,9 +11,8 @@ ssh:
 http:
   port: 4200
   domain: http://localhost:4200
-  log_queries: true
   rate_limit:
-    requests_per_minute: 60
+    requests_per_minute: 5
   database:
     dsn: postgres://sdump:sdump@localhost:3432/sdump?sslmode=disable
     log_queries: true
