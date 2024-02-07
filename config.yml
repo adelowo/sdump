@@ -12,7 +12,7 @@ http:
   port: 4200
   domain: http://localhost:4200
   rate_limit:
-    requests_per_minute: 5
+    requests_per_minute: 60
   database:
     dsn: postgres://sdump:sdump@localhost:3432/sdump?sslmode=disable
     log_queries: true

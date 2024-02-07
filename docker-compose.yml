@@ -10,8 +10,3 @@ services:
       - "3432:5432"
     volumes:
       - ./data/postgres/postgresql:/var/lib/postgres
-
-  redis_server:
-    image: redis
-    ports:
-      - "3379:6379"
