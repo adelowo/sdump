@@ -1,5 +1,7 @@
 package config
 
+import "time"
+
 // ENUM(psql)
 type DatabaseType string
 
@@ -53,9 +55,17 @@ type TUIConfig struct {
 	ColorScheme string `mapstructure:"color_scheme" yaml:"color_scheme" json:"color_scheme,omitempty"`
 }
 
+type CronConfig struct {
+	// SoftDeletes determines how to delete the DB content. It is set to
+	// false by default which means the content would actually be deleted completely from the database
+	SoftDeletes bool          `mapstructure:"soft_deletes" json:"soft_deletes,omitempty" yaml:"soft_deletes"`
+	TTL         time.Duration `mapstructure:"ttl" yaml:"ttl" json:"ttl,omitempty"`
+}
+
 type Config struct {
 	SSH      SSHConfig  `mapstructure:"ssh" json:"ssh,omitempty" yaml:"ssh"`
 	HTTP     HTTPConfig `json:"http,omitempty" mapstructure:"http" yaml:"http"`
 	LogLevel string     `mapstructure:"log_level" json:"log_level,omitempty" yaml:"log_level"`
 	TUI      TUIConfig  `mapstructure:"tui" json:"tui,omitempty" yaml:"tui"`
+	Cron     CronConfig `mapstructure:"cron" yaml:"cron" json:"cron,omitempty"`
 }

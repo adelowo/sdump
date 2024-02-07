@@ -24,3 +24,24 @@ func (u *ingestRepository) Create(ctx context.Context,
 		Exec(ctx)
 	return err
 }
+
+func (u *ingestRepository) Delete(ctx context.Context,
+	opts *sdump.DeleteIngestedRequestOptions,
+) error {
+	// This prevents us from deleting the entire database
+	// so enforce a time limit is available
+	if opts == nil {
+		return nil
+	}
+
+	deleteQuery := bun.NewDeleteQuery(u.inner).
+		Model((*sdump.IngestHTTPRequest)(nil)).
+		Where("created_at < ?", opts.Before)
+
+	if !opts.UseSoftDeletes {
+		deleteQuery = deleteQuery.ForceDelete()
+	}
+
+	_, err := deleteQuery.Exec(ctx)
+	return err
+}

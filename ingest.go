@@ -32,6 +32,12 @@ type IngestHTTPRequest struct {
 	bun.BaseModel `bun:"table:ingests"`
 }
 
+type DeleteIngestedRequestOptions struct {
+	Before         time.Time
+	UseSoftDeletes bool
+}
+
 type IngestRepository interface {
 	Create(context.Context, *IngestHTTPRequest) error
+	Delete(context.Context, *DeleteIngestedRequestOptions) error
 }

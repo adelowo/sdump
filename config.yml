@@ -1,5 +1,8 @@
 log: debug
 
+cron:
+  ttl: "48h"
+
 ssh:
   port: 2222
   identities:
@@ -8,6 +11,7 @@ ssh:
 http:
   port: 4200
   domain: http://localhost:4200
+  log_queries: true
   database:
     dsn: postgres://sdump:sdump@localhost:3432/sdump?sslmode=disable
     log_queries: true
