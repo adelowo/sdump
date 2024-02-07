@@ -103,6 +103,7 @@ func setDefaults() {
 	viper.SetDefault("http.otel.is_enabled", false)
 	viper.SetDefault("http.otel.use_tls", true)
 	viper.SetDefault("http.otel.service_name", "SDUMP")
+	viper.SetDefault("http.rate_limit.requests_per_minute", 60)
 	viper.SetDefault("http.otel.endpoint", "localhost:9500")
 	viper.SetDefault("cron.soft_deletes", false)
 	viper.SetDefault("cron.ttl", "48h")

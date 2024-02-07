@@ -4,9 +4,12 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/adelowo/sdump"
 	"github.com/adelowo/sdump/config"
+	tollbooth "github.com/didip/tollbooth/v7"
+	"github.com/didip/tollbooth/v7/limiter"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/telemetry"
@@ -86,11 +89,20 @@ func buildRoutes(cfg config.Config,
 
 	router.Use(otelchi.Middleware("http-router", otelchi.WithChiRoutes(router)))
 
+	rateLimiter := tollbooth.NewLimiter(float64(cfg.HTTP.RateLimit.RequestsPerMinute), &limiter.ExpirableOptions{
+		DefaultExpirationTTL: time.Minute,
+	})
+
+	rateLimiter.SetIPLookups([]string{
+		"CF-Connecting-IP", "X-Forwarded-For",
+		"X-Real-IP", "RemoteAddr",
+	})
+
 	router.Post("/", urlHandler.create)
 	router.Post("/{reference}", urlHandler.ingest)
 	router.Get("/events", sseServer.ServeHTTP)
 
-	return router
+	return tollbooth.LimitHandler(rateLimiter, router)
 }
 
 func writeRequestIDHeader(next http.Handler) http.Handler {

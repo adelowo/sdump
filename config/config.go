@@ -49,6 +49,10 @@ type HTTPConfig struct {
 		Password  string `json:"password,omitempty" mapstructure:"password" yaml:"password"`
 		IsEnabled bool   `json:"is_enabled,omitempty" mapstructure:"is_enabled" yaml:"is_enabled"`
 	} `json:"prometheus,omitempty" mapstructure:"prometheus" yaml:"prometheus"`
+
+	RateLimit struct {
+		RequestsPerMinute int64 `json:"requests_per_minute,omitempty" mapstructure:"requests_per_minute"`
+	} `json:"rate_limit,omitempty" mapstructure:"rate_limit"`
 }
 
 type TUIConfig struct {
