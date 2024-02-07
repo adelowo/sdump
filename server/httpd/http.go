@@ -90,7 +90,7 @@ func buildRoutes(cfg config.Config,
 	router.Use(otelchi.Middleware("http-router", otelchi.WithChiRoutes(router)))
 
 	rateLimiter := tollbooth.NewLimiter(float64(cfg.HTTP.RateLimit.RequestsPerMinute), &limiter.ExpirableOptions{
-		DefaultExpirationTTL: time.Hour,
+		DefaultExpirationTTL: time.Minute,
 	})
 
 	rateLimiter.SetIPLookups([]string{
