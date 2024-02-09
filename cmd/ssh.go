@@ -28,9 +28,7 @@ func createSSHCommand(rootCmd *cobra.Command, cfg *config.Config) {
 		RunE: func(_ *cobra.Command, _ []string) error {
 			s, err := wish.NewServer(
 				wish.WithAddress(fmt.Sprintf("%s:%d", cfg.SSH.Host, cfg.SSH.Port)),
-				wish.WithPublicKeyAuth(func(_ ssh.Context, pubKey ssh.PublicKey) bool {
-					return true
-				}),
+				validateSSHPublicKey(cfg),
 				wish.WithMiddleware(
 					bm.Middleware(teaHandler(cfg)),
 					lm.Middleware(),
@@ -82,6 +80,39 @@ func createSSHCommand(rootCmd *cobra.Command, cfg *config.Config) {
 	rootCmd.AddCommand(cmd)
 }
 
+func validateSSHPublicKey(cfg *config.Config) ssh.Option {
+	sshKeys := make(map[string]gossh.PublicKey, len(cfg.SSH.Allowlist))
+
+	for _, v := range cfg.SSH.Allowlist {
+
+		pemBytes, err := os.ReadFile(v)
+		if err != nil {
+			log.Fatalf("could not fetch ssh key ( %s ).. %v", v, err)
+		}
+
+		publicKey, err := gossh.ParsePublicKey(pemBytes)
+		if err != nil {
+			log.Fatalf("could not parse ssh key ( %s ).. %v", v, err)
+		}
+
+		sshKeys[gossh.FingerprintSHA256(publicKey)] = publicKey
+	}
+
+	return wish.WithPublicKeyAuth(func(_ ssh.Context, key ssh.PublicKey) bool {
+		if len(sshKeys) == 0 {
+			return true
+		}
+
+		for _, v := range sshKeys {
+			if ssh.KeysEqual(v, key) {
+				return true
+			}
+		}
+
+		return false
+	})
+}
+
 func teaHandler(cfg *config.Config) func(s ssh.Session) (tea.Model, []tea.ProgramOption) {
 	return func(s ssh.Session) (tea.Model, []tea.ProgramOption) {
 		pty, _, active := s.Pty()
@@ -91,7 +122,6 @@ func teaHandler(cfg *config.Config) func(s ssh.Session) (tea.Model, []tea.Progra
 		}
 
 		sshFingerPrint := gossh.FingerprintSHA256(s.PublicKey())
-		fmt.Println(sshFingerPrint)
 
 		tuiModel, err := tui.New(cfg,
 			tui.WithWidth(pty.Window.Width),
