@@ -36,6 +36,7 @@ type model struct {
 
 	requestList list.Model
 	httpClient  *http.Client
+	colorscheme string
 
 	sseClient                 *sse.Client
 	receiveChan               chan item
@@ -86,9 +87,10 @@ func newModel(cfg *config.Config, width, height int) model {
 	}
 
 	m := model{
-		width:  width,
-		height: height,
-		title:  "Sdump",
+		colorscheme: "monokai",
+		width:       width,
+		height:      height,
+		title:       "Sdump",
 		spinner: spinner.New(
 			spinner.WithSpinner(spinner.Line),
 			spinner.WithStyle(lipgloss.NewStyle().Foreground(lipgloss.Color("205"))),
