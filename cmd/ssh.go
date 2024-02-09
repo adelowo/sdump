@@ -103,13 +103,12 @@ func validateSSHPublicKey(cfg *config.Config) ssh.Option {
 			return true
 		}
 
-		for _, v := range sshKeys {
-			if ssh.KeysEqual(v, key) {
-				return true
-			}
+		publicKey, ok := sshKeys[gossh.FingerprintSHA256(key)]
+		if !ok {
+			return false
 		}
 
-		return false
+		return ssh.KeysEqual(publicKey, key)
 	})
 }
 
