@@ -28,16 +28,13 @@ func createSSHCommand(rootCmd *cobra.Command, cfg *config.Config) {
 		RunE: func(_ *cobra.Command, _ []string) error {
 			s, err := wish.NewServer(
 				wish.WithAddress(fmt.Sprintf("%s:%d", cfg.SSH.Host, cfg.SSH.Port)),
+				wish.WithPublicKeyAuth(func(_ ssh.Context, pubKey ssh.PublicKey) bool {
+					return true
+				}),
 				wish.WithMiddleware(
 					bm.Middleware(teaHandler(cfg)),
 					lm.Middleware(),
 				),
-				wish.WithPublicKeyAuth(func(_ ssh.Context, pubKey ssh.PublicKey) bool {
-					// allow all public keys go true
-					// TODO: implement public key authentication
-
-					return true
-				}),
 			)
 			if err != nil {
 				return err
@@ -94,6 +91,7 @@ func teaHandler(cfg *config.Config) func(s ssh.Session) (tea.Model, []tea.Progra
 		}
 
 		sshFingerPrint := gossh.FingerprintSHA256(s.PublicKey())
+		fmt.Println(sshFingerPrint)
 
 		tuiModel, err := tui.New(cfg,
 			tui.WithWidth(pty.Window.Width),
