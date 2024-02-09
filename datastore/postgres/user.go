@@ -32,9 +32,10 @@ func (u *userRepositoryTable) Find(ctx context.Context,
 ) (*sdump.User, error) {
 	res := new(sdump.User)
 
-	query := bun.NewSelectQuery(u.inner).Model(res)
+	err := bun.NewSelectQuery(u.inner).Model(res).
+		Where("ssh_finger_print = ?", opts.SSHKeyFingerprint).
+		Scan(ctx)
 
-	err := query.Scan(ctx, res)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, sdump.ErrUserNotFound
 	}
