@@ -58,6 +58,7 @@ func (u *urlRepositoryTable) Latest(ctx context.Context, userID uuid.UUID) (
 
 	err := bun.NewSelectQuery(u.inner).Model(ret).
 		Order("created_at DESC").
+		Where("user_id = ?", userID).
 		Limit(1).
 		Scan(ctx)
 
