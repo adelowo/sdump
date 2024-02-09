@@ -1,3 +1,4 @@
 .ssh/
 # deploy/
 id_ed25*
+id_ed25519*
