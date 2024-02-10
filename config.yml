@@ -5,6 +5,9 @@ cron:
 
 ssh:
   port: 2222
+  allow_list:
+    - ./.ssh/id_rsa.pub
+    - /Users/lanreadelowo/.ssh/id_rsa.pub
   identities:
     - "id_ed25519"
 

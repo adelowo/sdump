@@ -13,6 +13,10 @@ type SSHConfig struct {
 	// Identities is an array containing private keys for the ssh server
 	// By default it uses .ssh/id_rsa only
 	Identities []string `mapstructure:"identities" json:"identities,omitempty" yaml:"identities"`
+
+	// AllowList is a list of paths to public keys that should be accepted when connecting to the sshssh/i
+	// server
+	AllowList []string `json:"allow_list,omitempty" mapstructure:"allow_list" yaml:"allow_list"`
 }
 
 type HTTPConfig struct {
