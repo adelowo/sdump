@@ -81,16 +81,16 @@ func createSSHCommand(rootCmd *cobra.Command, cfg *config.Config) {
 }
 
 func validateSSHPublicKey(cfg *config.Config) ssh.Option {
-	sshKeys := make(map[string]gossh.PublicKey, len(cfg.SSH.Allowlist))
+	sshKeys := make(map[string]gossh.PublicKey, len(cfg.SSH.AllowList))
 
-	for _, v := range cfg.SSH.Allowlist {
+	for _, v := range cfg.SSH.AllowList {
 
 		pemBytes, err := os.ReadFile(v)
 		if err != nil {
 			log.Fatalf("could not fetch ssh key ( %s ).. %v", v, err)
 		}
 
-		publicKey, err := gossh.ParsePublicKey(pemBytes)
+		publicKey, _, _, _, err := gossh.ParseAuthorizedKey(pemBytes)
 		if err != nil {
 			log.Fatalf("could not parse ssh key ( %s ).. %v", v, err)
 		}
@@ -128,7 +128,7 @@ func teaHandler(cfg *config.Config) func(s ssh.Session) (tea.Model, []tea.Progra
 			tui.WithSSHFingerPrint(sshFingerPrint),
 		)
 		if err != nil {
-			wish.Fatalln(s, fmt.Errorf("%v...Could not set up TUI session..", err))
+			wish.Fatalln(s, fmt.Errorf("%v...Could not set up TUI session", err))
 			return nil, nil
 		}
 
