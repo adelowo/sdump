@@ -27,20 +27,99 @@ support. Just assign a remote port as port 80 to proxy HTTP traffic and 443
 to proxy HTTPS traffic. If you use any other remote port, the server will
 listen to the port for TCP connections, but only if that port is available.
 
-### How to use
+### How to use public hosted version
 
 ```sh
 ssh -p 2222 ssh.sdump.app
 ```
 
-### Commands
+## Getting started
 
-> If these commands don't work for you somehow, please let me know!
+- `sdump http`: starts the HTTP server.
+- `sdump ssh`: starts the SSH server
+- `sdump delete-http`: deletes/prunes old ingested requests. This can be a form
+of a cron job that runs every few days or so
 
-- `ctrl + y`: Copies the generated url you can use to debug
-HTTP requests
-- `ctrl + b`: Copies the JSON request body of the current request
-you are viewing
+### Configuration file
+
+Here is a full config file for all possible values:
+
+```toml
+## log level
+log: debug
+
+cron:
+  ## how often should the `delete-http` command run
+  ttl: "48h"
+  ## Do soft deletes or actually wipe them off the database
+  soft_deletes: false
+
+tui:
+  ## the color_scheme to use for the request body
+  # see https://github.com/alecthomas/chroma/tree/master/styles
+  color_scheme: monokai
+
+ssh:
+  ## port to run ssh server on
+  port: 2222
+  ## allow_list is a list of public keys that can connect to the ssh server
+  # this is useful if you were running a private instance for a few coworkers 
+  # or friends
+  allow_list:
+    - ./.ssh/id_rsa.pub
+    - /Users/lanreadelowo/.ssh/id_rsa.pub
+    
+  ## keys for the ssh server
+  identities:
+    - "id_ed25519"
+
+http:
+  ## port to run http server on
+  port: 4200
+  ## what domain name you want to use?
+  domain: http://localhost:4200
+  ## rate limiting clients
+  rate_limit:
+    ## limit the number of ingested requests from a specific client
+    requests_per_minute: 60
+  ## database configuration. postgres essentially
+  database:
+    ## database dsn
+    dsn: postgres://sdump:sdump@localhost:3432/sdump?sslmode=disable
+    ## should we log sql queries? In prod, no but in local mode, 
+    ## you probably want to 
+    log_queries: true
+
+  #  limit the size of jSON request body that can be sent to endpoints
+  max_request_body_size: 500
+
+  ## Opentelemetry and tracing config
+  otel:
+    ## does OTEL endpoint have tls enabled?
+    use_tls: true
+    ## custom name you want to use to identify the service
+    service_name: SDUMP
+    ## OTEL Endpoint 
+    endpoint: http://localhost:4200
+    ## Should we trace all http and DB requests
+    is_enabled: false
+
+  ## Prometheus configuration
+  prometheus:
+    ## protect your /metrics endpoint with basic auth
+    ## if provided, password must also be provided too
+    username: sdump
+    ## basic auth password for your /metrics
+    password: sdump
+
+    ## enable /metrics endpoint and metrics collection?
+    is_enabled: true
+
+  prometheus:
+    username: sdump
+    password: sdump
+    is_enabled: true
+```
 
 ### Developers' note
 
