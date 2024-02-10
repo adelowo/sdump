@@ -44,7 +44,7 @@ of a cron job that runs every few days or so
 
 Here is a full config file for all possible values:
 
-```toml
+```yaml
 ## log level
 log: debug
 
