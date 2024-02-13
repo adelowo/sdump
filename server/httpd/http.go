@@ -99,7 +99,7 @@ func buildRoutes(cfg config.Config,
 	})
 
 	router.Post("/", urlHandler.create)
-	router.Post("/{reference}", urlHandler.ingest)
+	router.HandleFunc("/{reference}", urlHandler.ingest)
 	router.Get("/events", sseServer.ServeHTTP)
 
 	return tollbooth.LimitHandler(rateLimiter, router)

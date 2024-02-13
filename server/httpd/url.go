@@ -166,6 +166,11 @@ func (u *urlHandler) ingest(w http.ResponseWriter, r *http.Request) {
 	ctx, span, requestID := getTracer(r.Context(), r, "url.ingest")
 	defer span.End()
 
+	if r.Method == http.MethodOptions {
+		_ = render.Render(w, r, newAPIError(http.StatusBadRequest, "Unsupported HTTP method"))
+		return
+	}
+
 	reference := chi.URLParam(r, "reference")
 
 	logger := u.logger.WithField("request_id", requestID).
@@ -223,6 +228,7 @@ func (u *urlHandler) ingest(w http.ResponseWriter, r *http.Request) {
 			Headers:   r.Header,
 			IPAddress: util.GetIP(r),
 			Size:      size,
+			Method:    r.Method,
 		},
 	}
 
