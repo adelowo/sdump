@@ -31,7 +31,7 @@ func (i item) Title() string { return fmt.Sprintf("%s    %s", i.ID, i.Request.IP
 func (i item) Description() string {
 	return fmt.Sprintf("%s   %s    %s",
 		defaultTextStyle.Copy().Foreground(faintBuleColor).
-			Render("POST"), humanize.Bytes(uint64(i.Request.Size)), i.CreatedAt.Format("02/01/2006 15:04:05"))
+			Render(i.Request.Method), humanize.Bytes(uint64(i.Request.Size)), i.CreatedAt.Format("02/01/2006 15:04:05"))
 }
 func (i item) FilterValue() string { return i.ID }
 
