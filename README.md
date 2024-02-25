@@ -114,11 +114,6 @@ http:
 
     ## enable /metrics endpoint and metrics collection?
     is_enabled: true
-
-  prometheus:
-    username: sdump
-    password: sdump
-    is_enabled: true
 ```
 
 ### Developers' note
