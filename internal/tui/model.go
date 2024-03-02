@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -177,6 +178,15 @@ func (m model) createEndpoint(forceURLChange bool) func() tea.Msg {
 		}
 
 		defer resp.Body.Close()
+
+		if resp.StatusCode > http.StatusCreated {
+			_, err := io.Copy(io.Discard, resp.Body)
+			if err != nil {
+				return ErrorMsg{err: err}
+			}
+
+			return ErrorMsg{err: errors.New("an error occurred while creating ingest url")}
+		}
 
 		var response struct {
 			URL struct {
