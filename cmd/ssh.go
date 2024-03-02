@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/adelowo/sdump/config"
+	"github.com/adelowo/sdump/internal/forward"
 	"github.com/adelowo/sdump/internal/tui"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/log"
@@ -22,15 +23,28 @@ import (
 )
 
 func createSSHCommand(rootCmd *cobra.Command, cfg *config.Config) {
+	forwardHandler := forward.New()
+
 	cmd := &cobra.Command{
 		Use:   "ssh",
 		Short: "Start/run the TUI app",
 		RunE: func(_ *cobra.Command, _ []string) error {
 			s, err := wish.NewServer(
 				wish.WithAddress(fmt.Sprintf("%s:%d", cfg.SSH.Host, cfg.SSH.Port)),
+				func(s *ssh.Server) error {
+					s.ReversePortForwardingCallback = func(_ ssh.Context, _ string, _ uint32) bool {
+						return true
+					}
+
+					s.RequestHandlers = map[string]ssh.RequestHandler{
+						"tcpip-forward":        forwardHandler.HandleSSHRequest,
+						"cancel-tcpip-forward": forwardHandler.HandleSSHRequest,
+					}
+					return nil
+				},
 				validateSSHPublicKey(cfg),
 				wish.WithMiddleware(
-					bm.Middleware(teaHandler(cfg)),
+					bm.Middleware(teaHandler(cfg, forwardHandler)),
 					lm.Middleware(),
 				),
 			)
@@ -112,7 +126,9 @@ func validateSSHPublicKey(cfg *config.Config) ssh.Option {
 	})
 }
 
-func teaHandler(cfg *config.Config) func(s ssh.Session) (tea.Model, []tea.ProgramOption) {
+func teaHandler(cfg *config.Config,
+	fowardHandler *forward.Forwarder,
+) func(s ssh.Session) (tea.Model, []tea.ProgramOption) {
 	return func(s ssh.Session) (tea.Model, []tea.ProgramOption) {
 		pty, _, active := s.Pty()
 		if !active {
@@ -120,12 +136,11 @@ func teaHandler(cfg *config.Config) func(s ssh.Session) (tea.Model, []tea.Progra
 			return nil, nil
 		}
 
-		sshFingerPrint := gossh.FingerprintSHA256(s.PublicKey())
-
-		tuiModel, err := tui.New(cfg,
+		tuiModel, err := tui.New(cfg, fowardHandler,
 			tui.WithWidth(pty.Window.Width),
 			tui.WithHeight(pty.Window.Height),
-			tui.WithSSHFingerPrint(sshFingerPrint),
+			tui.WithRemoteAddr(s.RemoteAddr()),
+			tui.WithSSHFingerPrint(gossh.FingerprintSHA256(s.PublicKey())),
 		)
 		if err != nil {
 			wish.Fatalln(s, fmt.Errorf("%v...Could not set up TUI session", err))

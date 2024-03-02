@@ -1,8 +1,18 @@
 package tui
 
-import "github.com/adelowo/sdump/config"
+import (
+	"net"
+
+	"github.com/adelowo/sdump/config"
+)
 
 type Option func(*model)
+
+func WithRemoteAddr(addr net.Addr) Option {
+	return func(m *model) {
+		m.remoteAddr = addr
+	}
+}
 
 func WithConfig(cfg *config.Config) Option {
 	return func(m *model) {
