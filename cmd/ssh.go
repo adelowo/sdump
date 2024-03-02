@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -132,16 +134,41 @@ func teaHandler(cfg *config.Config,
 	return func(s ssh.Session) (tea.Model, []tea.ProgramOption) {
 		pty, _, active := s.Pty()
 		if !active {
-			wish.Fatalln(s, "no active terminal, skipping")
-			return nil, nil
+			// wish.Fatalln(s, "no active terminal, skipping")
+			// return nil, nil
 		}
 
-		tuiModel, err := tui.New(cfg, fowardHandler,
-			tui.WithWidth(pty.Window.Width),
+		var opts []tui.Option
+
+		opts = append(opts, tui.WithWidth(pty.Window.Width),
 			tui.WithHeight(pty.Window.Height),
-			tui.WithRemoteAddr(s.RemoteAddr()),
 			tui.WithSSHFingerPrint(gossh.FingerprintSHA256(s.PublicKey())),
 		)
+
+		// NOTE: when we decide to expand this, please move the parsing of
+		// these commands out of here and simplify the logic
+		if len(s.Command()) == 2 {
+			if s.Command()[0] != "http" {
+				wish.Fatalln(s, "Only http commands supported")
+				return nil, nil
+			}
+
+			port, err := strconv.Atoi(s.Command()[1])
+			if err != nil {
+				wish.Fatal(s, "Please provide a valid port number to forward http requests to")
+				return nil, nil
+			}
+
+			host, _, err := net.SplitHostPort(s.RemoteAddr().String())
+			if err != nil {
+				wish.Fatalln(s, "could not fetch your remote address for port forwarding")
+				return nil, nil
+			}
+
+			opts = append(opts, tui.WithHTTPForwarding(true, host, port))
+		}
+
+		tuiModel, err := tui.New(cfg, fowardHandler, opts...)
 		if err != nil {
 			wish.Fatalln(s, fmt.Errorf("%v...Could not set up TUI session", err))
 			return nil, nil

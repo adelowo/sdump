@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -50,8 +49,10 @@ type model struct {
 
 	sshFingerPrint string
 
-	remoteAddr net.Addr
-	forwarder  *forward.Forwarder
+	host                    string
+	forwarder               *forward.Forwarder
+	isHTTPForwardingEnabled bool
+	portToForwardTo         int
 }
 
 func New(cfg *config.Config,
@@ -69,15 +70,21 @@ func New(cfg *config.Config,
 		opt(&tuiModel)
 	}
 
-	if tuiModel.remoteAddr == nil {
-		return nil, errors.New("we could not fetch your remote address")
-	}
+	if tuiModel.isHTTPForwardingEnabled {
+		if tuiModel.portToForwardTo <= 0 {
+			return nil, errors.New("please provide a non zero or negative port to forward your requests to")
+		}
 
-	if forwarder == nil {
-		return nil, errors.New("could not set up http forwarding")
-	}
+		if util.IsStringEmpty(tuiModel.host) {
+			return nil, errors.New("please provide a valid host address")
+		}
 
-	tuiModel.forwarder = forwarder
+		if forwarder == nil {
+			return nil, errors.New("could not set up http forwarding")
+		}
+
+		tuiModel.forwarder = forwarder
+	}
 
 	if util.IsStringEmpty(tuiModel.sshFingerPrint) {
 		return nil, errors.New("SSH fingerprint must be provided")
@@ -157,6 +164,7 @@ func (m model) createEndpoint(forceURLChange bool) func() tea.Msg {
 		var response struct {
 			URL struct {
 				HumanReadableEndpoint string `json:"human_readable_endpoint,omitempty"`
+				Identifier            string `json:"identifier"`
 			} `json:"url,omitempty"`
 			SSE struct {
 				Channel string `json:"channel,omitempty"`
@@ -165,6 +173,13 @@ func (m model) createEndpoint(forceURLChange bool) func() tea.Msg {
 
 		if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
 			return ErrorMsg{err: err}
+		}
+
+		if m.isHTTPForwardingEnabled {
+			m.forwarder.AddConnection(response.URL.Identifier, forward.ConnectionInfo{
+				Port: m.portToForwardTo,
+				Host: m.host,
+			})
 		}
 
 		return DumpURLMsg{

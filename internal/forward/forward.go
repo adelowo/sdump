@@ -8,7 +8,12 @@ import (
 )
 
 type ConnectionInfo struct {
-	Port int64
+	Port int
+	Host string
+
+	// do we even need this really?
+	// since we already have the host and port
+	// RemoteAddr net.Addr
 }
 
 type Forwarder struct {
@@ -25,12 +30,11 @@ func New() *Forwarder {
 	}
 }
 
-func (f *Forwarder) AddConnection(key string, data ConnectionInfo) error {
+func (f *Forwarder) AddConnection(key string, data ConnectionInfo) {
 	f.mutex.Lock()
 	defer f.mutex.Unlock()
 
 	f.connections[key] = data
-	return nil
 }
 
 func (f *Forwarder) HandleSSHRequest(ctx ssh.Context,

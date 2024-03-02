@@ -1,16 +1,18 @@
 package tui
 
 import (
-	"net"
-
 	"github.com/adelowo/sdump/config"
 )
 
 type Option func(*model)
 
-func WithRemoteAddr(addr net.Addr) Option {
+func WithHTTPForwarding(forwardRequests bool,
+	host string, portToForwardTo int,
+) Option {
 	return func(m *model) {
-		m.remoteAddr = addr
+		m.isHTTPForwardingEnabled = forwardRequests
+		m.portToForwardTo = portToForwardTo
+		m.host = host
 	}
 }
 
