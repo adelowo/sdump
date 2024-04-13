@@ -62,6 +62,9 @@ func createHTTPCommand(cmd *cobra.Command, cfg *config.Config) {
 				Tokens:   cfg.HTTP.RateLimit.RequestsPerMinute,
 				Interval: time.Minute,
 			})
+			if err != nil {
+				return err
+			}
 
 			urlStore := postgres.NewURLRepositoryTable(db)
 			ingestStore := postgres.NewIngestRepository(db)
