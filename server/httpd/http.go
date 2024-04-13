@@ -4,18 +4,17 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/adelowo/sdump"
 	"github.com/adelowo/sdump/config"
-	tollbooth "github.com/didip/tollbooth/v7"
-	"github.com/didip/tollbooth/v7/limiter"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/telemetry"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/r3labs/sse/v2"
 	"github.com/riandyrn/otelchi"
+	"github.com/sethvargo/go-limiter"
+	"github.com/sethvargo/go-limiter/httplimit"
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -43,10 +42,11 @@ func New(cfg config.Config,
 	userRepo sdump.UserRepository,
 	logger *logrus.Entry,
 	sseServer *sse.Server,
+	ratelimitStore limiter.Store,
 ) *http.Server {
 	return &http.Server{
 		Handler: buildRoutes(cfg, logger, urlRepo, ingestRepo,
-			userRepo, sseServer),
+			userRepo, sseServer, ratelimitStore),
 		Addr: fmt.Sprintf(":%d", cfg.HTTP.Port),
 	}
 }
@@ -57,7 +57,9 @@ func buildRoutes(cfg config.Config,
 	ingestRepo sdump.IngestRepository,
 	userRepo sdump.UserRepository,
 	sseServer *sse.Server,
+	ratelimitStore limiter.Store,
 ) http.Handler {
+
 	router := chi.NewRouter()
 
 	router.Use(middleware.AllowContentType("application/json"))
@@ -89,20 +91,18 @@ func buildRoutes(cfg config.Config,
 
 	router.Use(otelchi.Middleware("http-router", otelchi.WithChiRoutes(router)))
 
-	rateLimiter := tollbooth.NewLimiter(float64(cfg.HTTP.RateLimit.RequestsPerMinute), &limiter.ExpirableOptions{
-		DefaultExpirationTTL: time.Minute,
+	mid, err := httplimit.NewMiddleware(ratelimitStore, func(r *http.Request) (string, error) {
+		return chi.URLParam(r, "reference"), nil
 	})
-
-	rateLimiter.SetIPLookups([]string{
-		"CF-Connecting-IP", "X-Forwarded-For",
-		"X-Real-IP", "RemoteAddr",
-	})
+	if err != nil {
+		logger.WithError(err).Fatal("could not set up HTTP middleware")
+	}
 
 	router.Post("/", urlHandler.create)
-	router.HandleFunc("/{reference}", urlHandler.ingest)
+	router.Handle("/{reference}", mid.Handle(http.HandlerFunc(urlHandler.ingest)))
 	router.Get("/events", sseServer.ServeHTTP)
 
-	return tollbooth.LimitHandler(rateLimiter, router)
+	return router
 }
 
 func writeRequestIDHeader(next http.Handler) http.Handler {

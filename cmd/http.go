@@ -5,11 +5,13 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/adelowo/sdump/config"
 	"github.com/adelowo/sdump/datastore/postgres"
 	"github.com/adelowo/sdump/server/httpd"
 	"github.com/r3labs/sse/v2"
+	"github.com/sethvargo/go-limiter/memorystore"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"go.opentelemetry.io/otel"
@@ -56,6 +58,11 @@ func createHTTPCommand(cmd *cobra.Command, cfg *config.Config) {
 				return err
 			}
 
+			ratelimitStore, err := memorystore.New(&memorystore.Config{
+				Tokens:   cfg.HTTP.RateLimit.RequestsPerMinute,
+				Interval: time.Minute,
+			})
+
 			urlStore := postgres.NewURLRepositoryTable(db)
 			ingestStore := postgres.NewIngestRepository(db)
 			userStore := postgres.NewUserRepositoryTable(db)
@@ -71,7 +78,7 @@ func createHTTPCommand(cmd *cobra.Command, cfg *config.Config) {
 			sseServer := sse.New()
 
 			httpServer := httpd.New(*cfg, urlStore, ingestStore,
-				userStore, logger, sseServer)
+				userStore, logger, sseServer, ratelimitStore)
 
 			go func() {
 				logger.Debug("starting HTTP server")
