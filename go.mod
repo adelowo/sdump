@@ -1,6 +1,8 @@
 module github.com/adelowo/sdump
 
-go 1.21.5
+go 1.22
+
+toolchain go1.22.1
 
 require (
 	github.com/alecthomas/chroma/v2 v2.12.0
@@ -129,6 +131,7 @@ require (
 	github.com/sahilm/fuzzy v0.1.1-0.20230530133925-c48e322e2a8f // indirect
 	github.com/segmentio/asm v1.2.0 // indirect
 	github.com/sergi/go-diff v1.1.0 // indirect
+	github.com/sethvargo/go-limiter v1.0.0 // indirect
 	github.com/shirou/gopsutil/v3 v3.23.11 // indirect
 	github.com/shoenig/go-m1cpu v0.1.6 // indirect
 	github.com/shopspring/decimal v1.3.1 // indirect
