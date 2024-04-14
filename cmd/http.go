@@ -58,8 +58,13 @@ func createHTTPCommand(cmd *cobra.Command, cfg *config.Config) {
 				return err
 			}
 
+			var tokensPerMinute uint64 = 60
+			if cfg.HTTP.RateLimit.RequestsPerMinute > 0 {
+				tokensPerMinute = cfg.HTTP.RateLimit.RequestsPerMinute
+			}
+
 			ratelimitStore, err := memorystore.New(&memorystore.Config{
-				Tokens:   cfg.HTTP.RateLimit.RequestsPerMinute,
+				Tokens:   tokensPerMinute,
 				Interval: time.Minute,
 			})
 			if err != nil {
