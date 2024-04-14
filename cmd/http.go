@@ -109,6 +109,7 @@ func createHTTPCommand(cmd *cobra.Command, cfg *config.Config) {
 			}
 
 			sseServer.Close()
+			ratelimitStore.Close(context.Background())
 
 			return nil
 		},
