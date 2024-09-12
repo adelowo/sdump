@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/adelowo/sdump/config"
+	"github.com/adelowo/sdump/internal/forward"
 	"github.com/adelowo/sdump/internal/util"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/spinner"
@@ -47,9 +48,15 @@ type model struct {
 	width, height int
 
 	sshFingerPrint string
+
+	host                    string
+	forwarder               *forward.Forwarder
+	isHTTPForwardingEnabled bool
+	portToForwardTo         int
 }
 
 func New(cfg *config.Config,
+	forwarder *forward.Forwarder,
 	opts ...Option,
 ) (tea.Model, error) {
 	width, height, err := term.GetSize(int(os.Stderr.Fd()))
@@ -63,6 +70,22 @@ func New(cfg *config.Config,
 		opt(&tuiModel)
 	}
 
+	if tuiModel.isHTTPForwardingEnabled {
+		if tuiModel.portToForwardTo <= 0 {
+			return nil, errors.New("please provide a non zero or negative port to forward your requests to")
+		}
+
+		if util.IsStringEmpty(tuiModel.host) {
+			return nil, errors.New("please provide a valid host address")
+		}
+
+		if forwarder == nil {
+			return nil, errors.New("could not set up http forwarding")
+		}
+
+		tuiModel.forwarder = forwarder
+	}
+
 	if util.IsStringEmpty(tuiModel.sshFingerPrint) {
 		return nil, errors.New("SSH fingerprint must be provided")
 	}
@@ -72,56 +95,6 @@ func New(cfg *config.Config,
 	}
 
 	return tuiModel, nil
-}
-
-func newModel(cfg *config.Config, width, height int) model {
-	columns := []table.Column{
-		{
-			Title: "Header",
-			Width: 50,
-		},
-		{
-			Title: "Value",
-			Width: 50,
-		},
-	}
-
-	m := model{
-		width:  width,
-		height: height,
-		title:  "Sdump",
-		spinner: spinner.New(
-			spinner.WithSpinner(spinner.Line),
-			spinner.WithStyle(lipgloss.NewStyle().Foreground(lipgloss.Color("205"))),
-		),
-
-		cfg: cfg,
-		httpClient: &http.Client{
-			Timeout: time.Minute,
-		},
-
-		requestList:               list.New([]list.Item{}, list.NewDefaultDelegate(), 50, height),
-		detailedRequestView:       viewport.New(width, height),
-		detailedRequestViewBuffer: bytes.NewBuffer(nil),
-		sseClient:                 sse.NewClient(fmt.Sprintf("%s/events", cfg.HTTP.Domain)),
-		receiveChan:               make(chan item),
-
-		headersTable: table.New(table.WithColumns(columns),
-			table.WithFocused(true),
-			table.WithHeight(10),
-			table.WithWidth(width),
-			table.WithKeyMap(table.KeyMap{}),
-			table.WithStyles(getTableStyles())),
-	}
-
-	m.requestList.Title = "Incoming requests"
-	m.requestList.SetShowTitle(true)
-	m.requestList.SetFilteringEnabled(false)
-	m.requestList.DisableQuitKeybindings()
-
-	m.headersTable.Blur()
-
-	return m
 }
 
 func (m model) isInitialized() bool { return m.dumpURL != nil }
@@ -191,6 +164,7 @@ func (m model) createEndpoint(forceURLChange bool) func() tea.Msg {
 		var response struct {
 			URL struct {
 				HumanReadableEndpoint string `json:"human_readable_endpoint,omitempty"`
+				Identifier            string `json:"identifier"`
 			} `json:"url,omitempty"`
 			SSE struct {
 				Channel string `json:"channel,omitempty"`
@@ -199,6 +173,13 @@ func (m model) createEndpoint(forceURLChange bool) func() tea.Msg {
 
 		if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
 			return ErrorMsg{err: err}
+		}
+
+		if m.isHTTPForwardingEnabled {
+			m.forwarder.AddConnection(response.URL.Identifier, forward.ConnectionInfo{
+				Port: m.portToForwardTo,
+				Host: m.host,
+			})
 		}
 
 		return DumpURLMsg{
@@ -380,4 +361,54 @@ func (m model) makeTable() string {
 	m.headersTable.SetRows(rows)
 
 	return m.buildView()
+}
+
+func newModel(cfg *config.Config, width, height int) model {
+	columns := []table.Column{
+		{
+			Title: "Header",
+			Width: 50,
+		},
+		{
+			Title: "Value",
+			Width: 50,
+		},
+	}
+
+	m := model{
+		width:  width,
+		height: height,
+		title:  "Sdump",
+		spinner: spinner.New(
+			spinner.WithSpinner(spinner.Line),
+			spinner.WithStyle(lipgloss.NewStyle().Foreground(lipgloss.Color("205"))),
+		),
+
+		cfg: cfg,
+		httpClient: &http.Client{
+			Timeout: time.Minute,
+		},
+
+		requestList:               list.New([]list.Item{}, list.NewDefaultDelegate(), 50, height),
+		detailedRequestView:       viewport.New(width, height),
+		detailedRequestViewBuffer: bytes.NewBuffer(nil),
+		sseClient:                 sse.NewClient(fmt.Sprintf("%s/events", cfg.HTTP.Domain)),
+		receiveChan:               make(chan item),
+
+		headersTable: table.New(table.WithColumns(columns),
+			table.WithFocused(true),
+			table.WithHeight(10),
+			table.WithWidth(width),
+			table.WithKeyMap(table.KeyMap{}),
+			table.WithStyles(getTableStyles())),
+	}
+
+	m.requestList.Title = "Incoming requests"
+	m.requestList.SetShowTitle(true)
+	m.requestList.SetFilteringEnabled(false)
+	m.requestList.DisableQuitKeybindings()
+
+	m.headersTable.Blur()
+
+	return m
 }

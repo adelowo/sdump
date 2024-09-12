@@ -4,12 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
 	"github.com/adelowo/sdump/config"
+	"github.com/adelowo/sdump/internal/forward"
 	"github.com/adelowo/sdump/internal/tui"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/log"
@@ -22,15 +25,28 @@ import (
 )
 
 func createSSHCommand(rootCmd *cobra.Command, cfg *config.Config) {
+	forwardHandler := forward.New()
+
 	cmd := &cobra.Command{
 		Use:   "ssh",
 		Short: "Start/run the TUI app",
 		RunE: func(_ *cobra.Command, _ []string) error {
 			s, err := wish.NewServer(
 				wish.WithAddress(fmt.Sprintf("%s:%d", cfg.SSH.Host, cfg.SSH.Port)),
+				func(s *ssh.Server) error {
+					s.ReversePortForwardingCallback = func(_ ssh.Context, _ string, _ uint32) bool {
+						return true
+					}
+
+					s.RequestHandlers = map[string]ssh.RequestHandler{
+						"tcpip-forward":        forwardHandler.HandleSSHRequest,
+						"cancel-tcpip-forward": forwardHandler.HandleSSHRequest,
+					}
+					return nil
+				},
 				validateSSHPublicKey(cfg),
 				wish.WithMiddleware(
-					bm.Middleware(teaHandler(cfg)),
+					bm.Middleware(teaHandler(cfg, forwardHandler)),
 					lm.Middleware(),
 				),
 			)
@@ -112,21 +128,47 @@ func validateSSHPublicKey(cfg *config.Config) ssh.Option {
 	})
 }
 
-func teaHandler(cfg *config.Config) func(s ssh.Session) (tea.Model, []tea.ProgramOption) {
+func teaHandler(cfg *config.Config,
+	fowardHandler *forward.Forwarder,
+) func(s ssh.Session) (tea.Model, []tea.ProgramOption) {
 	return func(s ssh.Session) (tea.Model, []tea.ProgramOption) {
 		pty, _, active := s.Pty()
 		if !active {
-			wish.Fatalln(s, "no active terminal, skipping")
-			return nil, nil
+			// wish.Fatalln(s, "no active terminal, skipping")
+			// return nil, nil
 		}
 
-		sshFingerPrint := gossh.FingerprintSHA256(s.PublicKey())
+		var opts []tui.Option
 
-		tuiModel, err := tui.New(cfg,
-			tui.WithWidth(pty.Window.Width),
+		opts = append(opts, tui.WithWidth(pty.Window.Width),
 			tui.WithHeight(pty.Window.Height),
-			tui.WithSSHFingerPrint(sshFingerPrint),
+			tui.WithSSHFingerPrint(gossh.FingerprintSHA256(s.PublicKey())),
 		)
+
+		// NOTE: when we decide to expand this, please move the parsing of
+		// these commands out of here and simplify the logic
+		if len(s.Command()) == 2 {
+			if s.Command()[0] != "http" {
+				wish.Fatalln(s, "Only http commands supported")
+				return nil, nil
+			}
+
+			port, err := strconv.Atoi(s.Command()[1])
+			if err != nil {
+				wish.Fatal(s, "Please provide a valid port number to forward http requests to")
+				return nil, nil
+			}
+
+			host, _, err := net.SplitHostPort(s.RemoteAddr().String())
+			if err != nil {
+				wish.Fatalln(s, "could not fetch your remote address for port forwarding")
+				return nil, nil
+			}
+
+			opts = append(opts, tui.WithHTTPForwarding(true, host, port))
+		}
+
+		tuiModel, err := tui.New(cfg, fowardHandler, opts...)
 		if err != nil {
 			wish.Fatalln(s, fmt.Errorf("%v...Could not set up TUI session", err))
 			return nil, nil

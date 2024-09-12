@@ -1,8 +1,20 @@
 package tui
 
-import "github.com/adelowo/sdump/config"
+import (
+	"github.com/adelowo/sdump/config"
+)
 
 type Option func(*model)
+
+func WithHTTPForwarding(forwardRequests bool,
+	host string, portToForwardTo int,
+) Option {
+	return func(m *model) {
+		m.isHTTPForwardingEnabled = forwardRequests
+		m.portToForwardTo = portToForwardTo
+		m.host = host
+	}
+}
 
 func WithConfig(cfg *config.Config) Option {
 	return func(m *model) {
