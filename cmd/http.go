@@ -9,11 +9,13 @@ import (
 
 	"github.com/adelowo/sdump/config"
 	"github.com/adelowo/sdump/datastore/postgres"
+	"github.com/adelowo/sdump/datastore/sqlite"
 	"github.com/adelowo/sdump/server/httpd"
 	"github.com/r3labs/sse/v2"
 	"github.com/sethvargo/go-limiter/memorystore"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/uptrace/bun"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
@@ -22,6 +24,14 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"google.golang.org/grpc/credentials"
 )
+
+func getDatabase(cfg *config.Config) (*bun.DB, error) {
+	if cfg.HTTP.Database.Driver == "sqllite" {
+		return sqlite.New(cfg.HTTP.Database.DSN, cfg.HTTP.Database.LogQueries)
+	}
+
+	return postgres.New(cfg.HTTP.Database.DSN, cfg.HTTP.Database.LogQueries)
+}
 
 func createHTTPCommand(cmd *cobra.Command, cfg *config.Config) {
 	command := &cobra.Command{
@@ -53,11 +63,6 @@ func createHTTPCommand(cmd *cobra.Command, cfg *config.Config) {
 			logrus.SetOutput(os.Stdout)
 			logrus.SetLevel(lvl)
 
-			db, err := postgres.New(cfg.HTTP.Database.DSN, cfg.HTTP.Database.LogQueries)
-			if err != nil {
-				return err
-			}
-
 			var tokensPerMinute uint64 = 60
 			if cfg.HTTP.RateLimit.RequestsPerMinute > 0 {
 				tokensPerMinute = cfg.HTTP.RateLimit.RequestsPerMinute
@@ -71,6 +76,12 @@ func createHTTPCommand(cmd *cobra.Command, cfg *config.Config) {
 				return err
 			}
 
+			// TODO: use appropriate stores
+			// Or just return the stores themselves, not the inner db
+			db, err := getDatabase(cfg)
+			if err != nil {
+				return err
+			}
 			urlStore := postgres.NewURLRepositoryTable(db)
 			ingestStore := postgres.NewIngestRepository(db)
 			userStore := postgres.NewUserRepositoryTable(db)

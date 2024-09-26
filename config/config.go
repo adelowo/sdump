@@ -34,6 +34,7 @@ type HTTPConfig struct {
 	Database struct {
 		DSN        string `mapstructure:"dsn" json:"dsn,omitempty" yaml:"dsn"`
 		LogQueries bool   `mapstructure:"log_queries" json:"log_queries,omitempty" yaml:"log_queries"`
+		Driver     string `mapstructure:"driver" json:"driver,omitempty" yaml:"driver,omitempty"`
 	} `mapstructure:"database" json:"database,omitempty" yaml:"database"`
 
 	Domain             string `json:"domain,omitempty" yaml:"domain" mapstructure:"domain"`
