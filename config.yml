@@ -38,11 +38,11 @@ http:
   ## database configuration. postgres essentially
   database:
     ## database dsn
-    # dsn: postgres://sdump:sdump@localhost:3432/sdump?sslmode=disable
-    dsn: "file::memory:?cache=shared"
+    dsn: postgres://sdump:sdump@localhost:3432/sdump?sslmode=disable
+    # dsn: "file::memory:?cache=shared"
     ## should we log sql queries? In prod, no but in local mode, you probably want to
     log_queries: true
-    driver: "sqllite"
+    # driver: "sqllite"
 
   #  limit the size of jSON request body that can be sent to endpoints
   max_request_body_size: 500
