@@ -1,6 +1,12 @@
 package config
 
-import "time"
+import (
+	"time"
+
+	"github.com/adelowo/sdump/datastore/postgres"
+	"github.com/adelowo/sdump/datastore/sqlite"
+	"github.com/uptrace/bun"
+)
 
 // ENUM(psql)
 type DatabaseType string
@@ -77,4 +83,12 @@ type Config struct {
 	LogLevel string     `mapstructure:"log_level" json:"log_level,omitempty" yaml:"log_level"`
 	TUI      TUIConfig  `mapstructure:"tui" json:"tui,omitempty" yaml:"tui"`
 	Cron     CronConfig `mapstructure:"cron" yaml:"cron" json:"cron,omitempty"`
+}
+
+func (cfg *Config) GetDatabase() (*bun.DB, error) {
+	if cfg.HTTP.Database.Driver == "sqllite" {
+		return sqlite.New(cfg.HTTP.Database.DSN, cfg.HTTP.Database.LogQueries)
+	}
+
+	return postgres.New(cfg.HTTP.Database.DSN, cfg.HTTP.Database.LogQueries)
 }

@@ -30,11 +30,11 @@ require (
 	github.com/spf13/viper v1.18.2
 	github.com/stretchr/testify v1.8.4
 	github.com/testcontainers/testcontainers-go v0.27.0
-	github.com/uptrace/bun v1.2.3
+	github.com/uptrace/bun v1.1.17
 	github.com/uptrace/bun/dialect/pgdialect v1.1.17
-	github.com/uptrace/bun/dialect/sqlitedialect v1.2.3
+	github.com/uptrace/bun/dialect/sqlitedialect v1.1.17
 	github.com/uptrace/bun/driver/pgdriver v1.1.17
-	github.com/uptrace/bun/driver/sqliteshim v1.2.3
+	github.com/uptrace/bun/driver/sqliteshim v1.1.17
 	github.com/uptrace/bun/extra/bundebug v1.1.17
 	github.com/uptrace/bun/extra/bunotel v1.1.17
 	go.opentelemetry.io/otel v1.22.0
@@ -129,7 +129,6 @@ require (
 	github.com/prometheus/client_model v0.5.0 // indirect
 	github.com/prometheus/common v0.45.0 // indirect
 	github.com/prometheus/procfs v0.12.0 // indirect
-	github.com/puzpuzpuz/xsync/v3 v3.4.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/rivo/uniseg v0.4.4 // indirect
 	github.com/sagikazarmark/locafero v0.4.0 // indirect

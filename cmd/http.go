@@ -8,14 +8,12 @@ import (
 	"time"
 
 	"github.com/adelowo/sdump/config"
-	"github.com/adelowo/sdump/datastore/postgres"
-	"github.com/adelowo/sdump/datastore/sqlite"
+	sdumpSql "github.com/adelowo/sdump/datastore/sql"
 	"github.com/adelowo/sdump/server/httpd"
 	"github.com/r3labs/sse/v2"
 	"github.com/sethvargo/go-limiter/memorystore"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"github.com/uptrace/bun"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
@@ -24,14 +22,6 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"google.golang.org/grpc/credentials"
 )
-
-func getDatabase(cfg *config.Config) (*bun.DB, error) {
-	if cfg.HTTP.Database.Driver == "sqllite" {
-		return sqlite.New(cfg.HTTP.Database.DSN, cfg.HTTP.Database.LogQueries)
-	}
-
-	return postgres.New(cfg.HTTP.Database.DSN, cfg.HTTP.Database.LogQueries)
-}
 
 func createHTTPCommand(cmd *cobra.Command, cfg *config.Config) {
 	command := &cobra.Command{
@@ -76,15 +66,13 @@ func createHTTPCommand(cmd *cobra.Command, cfg *config.Config) {
 				return err
 			}
 
-			// TODO: use appropriate stores
-			// Or just return the stores themselves, not the inner db
-			db, err := getDatabase(cfg)
+			db, err := cfg.GetDatabase()
 			if err != nil {
 				return err
 			}
-			urlStore := postgres.NewURLRepositoryTable(db)
-			ingestStore := postgres.NewIngestRepository(db)
-			userStore := postgres.NewUserRepositoryTable(db)
+			urlStore := sdumpSql.NewURLRepositoryTable(db)
+			ingestStore := sdumpSql.NewIngestRepository(db)
+			userStore := sdumpSql.NewUserRepositoryTable(db)
 
 			hostName, err := os.Hostname()
 			if err != nil {
