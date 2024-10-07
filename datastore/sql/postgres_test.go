@@ -1,7 +1,7 @@
 //go:build integration
 // +build integration
 
-package postgres
+package sql
 
 import (
 	"context"
@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"testing"
 
+	sdumpPostgres "github.com/adelowo/sdump/datastore/postgres"
 	testfixtures "github.com/go-testfixtures/testfixtures/v3"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
@@ -19,7 +20,7 @@ import (
 	"github.com/uptrace/bun"
 )
 
-func prepareTestDatabase(t *testing.T, dsn string) {
+func preparePostgresTestDatabase(t *testing.T, dsn string) {
 	t.Helper()
 
 	var err error
@@ -50,9 +51,9 @@ func prepareTestDatabase(t *testing.T, dsn string) {
 	require.NoError(t, fixtures.Load())
 }
 
-// setupDatabase spins up a new Postgres container and returns a closure
+// setupPostgresDatabase spins up a new Postgres container and returns a closure
 // please always make sure to call the closure as it is the teardown function
-func setupDatabase(t *testing.T) (*bun.DB, func()) {
+func setupPostgresDatabase(t *testing.T) (*bun.DB, func()) {
 	t.Helper()
 
 	var dsn string
@@ -83,9 +84,9 @@ func setupDatabase(t *testing.T) (*bun.DB, func()) {
 	dsn = fmt.Sprintf("postgres://%s:%s@%s/%s?sslmode=disable", "sdump", "sdump",
 		fmt.Sprintf("localhost:%s", port.Port()), "sdumptest")
 
-	prepareTestDatabase(t, dsn)
+	preparePostgresTestDatabase(t, dsn)
 
-	client, err := New(dsn, false)
+	client, err := sdumpPostgres.New(dsn, false)
 	require.NoError(t, err)
 
 	return client, func() {

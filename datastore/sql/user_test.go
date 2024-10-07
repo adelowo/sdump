@@ -15,7 +15,7 @@ import (
 // var userID = uuid.MustParse("8511ac86-5079-42ae-a030-cb46e6dbfbda")
 
 func TestUserRepository_Create(t *testing.T) {
-	client, teardownFunc := setupDatabase(t)
+	client, teardownFunc := setupPostgresDatabase(t)
 	defer teardownFunc()
 
 	userStore := NewUserRepositoryTable(client)
@@ -27,7 +27,7 @@ func TestUserRepository_Create(t *testing.T) {
 }
 
 func TestUserRepository_Find(t *testing.T) {
-	client, teardownFunc := setupDatabase(t)
+	client, teardownFunc := setupPostgresDatabase(t)
 	defer teardownFunc()
 
 	userStore := NewUserRepositoryTable(client)

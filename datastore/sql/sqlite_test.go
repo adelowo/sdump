@@ -1,13 +1,14 @@
 //go:build integration
 // +build integration
 
-package sqlite
+package sql
 
 import (
 	"database/sql"
 	"fmt"
 	"testing"
 
+	sdumpSqllite "github.com/adelowo/sdump/datastore/sqlite"
 	testfixtures "github.com/go-testfixtures/testfixtures/v3"
 	"github.com/stretchr/testify/require"
 	"github.com/uptrace/bun"
@@ -17,7 +18,7 @@ import (
 	"github.com/golang-migrate/migrate/v4/database/sqlite3"
 )
 
-func prepareTestDatabase(t *testing.T, dsn string) {
+func prepareSqlliteTestDatabase(t *testing.T, dsn string) {
 	t.Helper()
 
 	var err error
@@ -48,14 +49,14 @@ func prepareTestDatabase(t *testing.T, dsn string) {
 	require.NoError(t, fixtures.Load())
 }
 
-func setupDatabase(t *testing.T) (*bun.DB, func()) {
+func setupSqlliteDatabase(t *testing.T) (*bun.DB, func()) {
 	t.Helper()
 
 	dsn := "file::memory:?cache=shared"
 
-	prepareTestDatabase(t, dsn)
+	prepareSqlliteTestDatabase(t, dsn)
 
-	client, err := New(dsn, false)
+	client, err := sdumpSqllite.New(dsn, false)
 	require.NoError(t, err)
 
 	return client, func() {
