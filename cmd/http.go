@@ -66,7 +66,7 @@ func createHTTPCommand(cmd *cobra.Command, cfg *config.Config) {
 				return err
 			}
 
-			db, err := cfg.GetDatabase()
+			db, err := sdumpSql.New(cfg.HTTP.Database)
 			if err != nil {
 				return err
 			}

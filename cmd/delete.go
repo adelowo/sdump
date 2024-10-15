@@ -16,7 +16,7 @@ func createDeleteCommand(rootCmd *cobra.Command, cfg *config.Config) {
 		Aliases: []string{"d"},
 		Short:   "Deletes all old HTTP requests to preserve DB space",
 		RunE: func(_ *cobra.Command, _ []string) error {
-			db, err := cfg.GetDatabase()
+			db, err := sdumpSql.New(cfg.HTTP.Database)
 			if err != nil {
 				return err
 			}
