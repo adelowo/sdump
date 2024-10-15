@@ -33,7 +33,7 @@ func TestIngestRepository_Create(t *testing.T) {
 }
 
 func TestIngestRepository_Sqllite_Create(t *testing.T) {
-	client, teardownFunc := setupSqlliteDatabase(t)
+	client, teardownFunc := setupSqliteDatabase(t)
 	defer teardownFunc()
 
 	ingestStore := NewIngestRepository(client)

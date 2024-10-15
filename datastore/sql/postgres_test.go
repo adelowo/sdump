@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"testing"
 
-	sdumpPostgres "github.com/adelowo/sdump/datastore/postgres"
+	"github.com/adelowo/sdump/config"
 	testfixtures "github.com/go-testfixtures/testfixtures/v3"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
@@ -86,7 +86,9 @@ func setupPostgresDatabase(t *testing.T) (*bun.DB, func()) {
 
 	preparePostgresTestDatabase(t, dsn)
 
-	client, err := sdumpPostgres.New(dsn, false)
+	client, err := New(config.DatabaseConfig{
+		DSN: dsn,
+	})
 	require.NoError(t, err)
 
 	return client, func() {
