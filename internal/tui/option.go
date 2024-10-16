@@ -1,8 +1,16 @@
 package tui
 
-import "github.com/adelowo/sdump/config"
+import (
+	"github.com/adelowo/sdump/config"
+)
 
 type Option func(*model)
+
+func WithColorscheme(colorscheme string) Option {
+	return func(m *model) {
+		m.colorscheme = colorscheme
+	}
+}
 
 func WithConfig(cfg *config.Config) Option {
 	return func(m *model) {

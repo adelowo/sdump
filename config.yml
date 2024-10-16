@@ -10,7 +10,7 @@ cron:
 tui:
   ## the color_scheme to use for the request body
   # see https://github.com/alecthomas/chroma/tree/master/styles
-  color_scheme: monokai
+  color_scheme: catppuccin-mocha
 
 ssh:
   ## port to run ssh server on
@@ -35,14 +35,16 @@ http:
     ## limit the number of ingested requests from a specific client
     requests_per_minute: 10
 
-  ## database configuration. postgres essentially
+  ## database configuration.
   database:
-    ## database dsn
-    dsn: postgres://sdump:sdump@localhost:3432/sdump?sslmode=disable
     # dsn: "file::memory:?cache=shared"
+    # driver: "sqlite"
+
+    dsn: postgres://sdump:sdump@localhost:3432/sdump?sslmode=disable
+    driver: "postgres"
+
     ## should we log sql queries? In prod, no but in local mode, you probably want to
     log_queries: true
-    # driver: "sqlite"
 
   #  limit the size of jSON request body that can be sent to endpoints
   max_request_body_size: 500

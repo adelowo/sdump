@@ -20,7 +20,6 @@ I spend an awful amount of time in the terminal and it makes sense i should
 be able to spin up and use a request bin on my terminal. Hence this
 project sdump
 
-
 ### How to use public hosted version
 
 ```sh
@@ -32,7 +31,7 @@ ssh -p 2222 ssh.sdump.app
 - `sdump http`: starts the HTTP server.
 - `sdump ssh`: starts the SSH server
 - `sdump delete-http`: deletes/prunes old ingested requests. This can be a form
-of a cron job that runs every few days or so
+  of a cron job that runs every few days or so
 
 ### Configuration file
 
@@ -57,12 +56,12 @@ ssh:
   ## port to run ssh server on
   port: 2222
   ## allow_list is a list of public keys that can connect to the ssh server
-  # this is useful if you were running a private instance for a few coworkers 
+  # this is useful if you were running a private instance for a few coworkers
   # or friends
   allow_list:
     - ./.ssh/id_rsa.pub
     - /Users/lanreadelowo/.ssh/id_rsa.pub
-    
+
   ## keys for the ssh server
   identities:
     - "id_ed25519"
@@ -80,8 +79,8 @@ http:
   database:
     ## database dsn
     dsn: postgres://sdump:sdump@localhost:3432/sdump?sslmode=disable
-    ## should we log sql queries? In prod, no but in local mode, 
-    ## you probably want to 
+    ## should we log sql queries? In prod, no but in local mode,
+    ## you probably want to
     log_queries: true
 
   #  limit the size of jSON request body that can be sent to endpoints
@@ -93,7 +92,7 @@ http:
     use_tls: true
     ## custom name you want to use to identify the service
     service_name: SDUMP
-    ## OTEL Endpoint 
+    ## OTEL Endpoint
     endpoint: http://localhost:4200
     ## Should we trace all http and DB requests
     is_enabled: false
