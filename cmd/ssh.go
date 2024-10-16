@@ -126,6 +126,7 @@ func teaHandler(cfg *config.Config) func(s ssh.Session) (tea.Model, []tea.Progra
 			tui.WithWidth(pty.Window.Width),
 			tui.WithHeight(pty.Window.Height),
 			tui.WithSSHFingerPrint(sshFingerPrint),
+			tui.WithColorscheme(cfg.TUI.ColorScheme),
 		)
 		if err != nil {
 			wish.Fatalln(s, fmt.Errorf("%v...Could not set up TUI session", err))
