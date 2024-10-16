@@ -88,7 +88,7 @@ func newModel(cfg *config.Config, width, height int) model {
 	}
 
 	m := model{
-		colorscheme: "monokai",
+		colorscheme: cfg.TUI.ColorScheme,
 		width:       width,
 		height:      height,
 		title:       "Sdump",
