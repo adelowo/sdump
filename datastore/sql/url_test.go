@@ -1,7 +1,7 @@
 //go:build integration
 // +build integration
 
-package postgres
+package sql
 
 import (
 	"context"
@@ -16,7 +16,7 @@ import (
 var userID = uuid.MustParse("8511ac86-5079-42ae-a030-cb46e6dbfbda")
 
 func TestURLRepositoryTable_Create(t *testing.T) {
-	client, teardownFunc := setupDatabase(t)
+	client, teardownFunc := setupPostgresDatabase(t)
 	defer teardownFunc()
 
 	urlStore := NewURLRepositoryTable(client)
@@ -26,7 +26,7 @@ func TestURLRepositoryTable_Create(t *testing.T) {
 }
 
 func TestURLRepositoryTable_Get(t *testing.T) {
-	client, teardownFunc := setupDatabase(t)
+	client, teardownFunc := setupPostgresDatabase(t)
 	defer teardownFunc()
 
 	urlStore := NewURLRepositoryTable(client)
@@ -44,7 +44,7 @@ func TestURLRepositoryTable_Get(t *testing.T) {
 }
 
 func TestURLRepositoryTable_Latest(t *testing.T) {
-	client, teardownFunc := setupDatabase(t)
+	client, teardownFunc := setupPostgresDatabase(t)
 	defer teardownFunc()
 
 	urlStore := NewURLRepositoryTable(client)

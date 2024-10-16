@@ -1,8 +1,10 @@
 package config
 
-import "time"
+import (
+	"time"
+)
 
-// ENUM(psql)
+// ENUM(psql, sqlite)
 type DatabaseType string
 
 type SSHConfig struct {
@@ -19,6 +21,12 @@ type SSHConfig struct {
 	AllowList []string `json:"allow_list,omitempty" mapstructure:"allow_list" yaml:"allow_list"`
 }
 
+type DatabaseConfig struct {
+	DSN        string       `mapstructure:"dsn" json:"dsn,omitempty" yaml:"dsn"`
+	LogQueries bool         `mapstructure:"log_queries" json:"log_queries,omitempty" yaml:"log_queries"`
+	Driver     DatabaseType `mapstructure:"driver" json:"driver,omitempty" yaml:"driver,omitempty"`
+}
+
 type HTTPConfig struct {
 	// Port to run http server on
 	// The server
@@ -31,10 +39,7 @@ type HTTPConfig struct {
 	// If empty, server would crash
 	AdminSecret string `mapstructure:"admin_secret" json:"admin_secret,omitempty" yaml:"admin_secret"`
 
-	Database struct {
-		DSN        string `mapstructure:"dsn" json:"dsn,omitempty" yaml:"dsn"`
-		LogQueries bool   `mapstructure:"log_queries" json:"log_queries,omitempty" yaml:"log_queries"`
-	} `mapstructure:"database" json:"database,omitempty" yaml:"database"`
+	Database DatabaseConfig `mapstructure:"database" json:"database,omitempty" yaml:"database"`
 
 	Domain             string `json:"domain,omitempty" yaml:"domain" mapstructure:"domain"`
 	MaxRequestBodySize int64  `json:"max_request_body_size,omitempty" yaml:"max_request_body_size" mapstructure:"max_request_body_size"`

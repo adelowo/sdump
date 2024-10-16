@@ -6,7 +6,7 @@ import (
 
 	"github.com/adelowo/sdump"
 	"github.com/adelowo/sdump/config"
-	"github.com/adelowo/sdump/datastore/postgres"
+	sdumpSql "github.com/adelowo/sdump/datastore/sql"
 	"github.com/spf13/cobra"
 )
 
@@ -16,12 +16,12 @@ func createDeleteCommand(rootCmd *cobra.Command, cfg *config.Config) {
 		Aliases: []string{"d"},
 		Short:   "Deletes all old HTTP requests to preserve DB space",
 		RunE: func(_ *cobra.Command, _ []string) error {
-			db, err := postgres.New(cfg.HTTP.Database.DSN, cfg.HTTP.Database.LogQueries)
+			db, err := sdumpSql.New(cfg.HTTP.Database)
 			if err != nil {
 				return err
 			}
 
-			ingestStore := postgres.NewIngestRepository(db)
+			ingestStore := sdumpSql.NewIngestRepository(db)
 
 			before := time.Now().Add(-1 * cfg.Cron.TTL)
 

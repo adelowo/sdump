@@ -1,7 +1,7 @@
 //go:build integration
 // +build integration
 
-package postgres
+package sql
 
 import (
 	"context"
@@ -12,7 +12,7 @@ import (
 )
 
 func TestIngestRepository_Create(t *testing.T) {
-	client, teardownFunc := setupDatabase(t)
+	client, teardownFunc := setupPostgresDatabase(t)
 	defer teardownFunc()
 
 	ingestStore := NewIngestRepository(client)

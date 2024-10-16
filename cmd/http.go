@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/adelowo/sdump/config"
-	"github.com/adelowo/sdump/datastore/postgres"
+	sdumpSql "github.com/adelowo/sdump/datastore/sql"
 	"github.com/adelowo/sdump/server/httpd"
 	"github.com/r3labs/sse/v2"
 	"github.com/sethvargo/go-limiter/memorystore"
@@ -53,11 +53,6 @@ func createHTTPCommand(cmd *cobra.Command, cfg *config.Config) {
 			logrus.SetOutput(os.Stdout)
 			logrus.SetLevel(lvl)
 
-			db, err := postgres.New(cfg.HTTP.Database.DSN, cfg.HTTP.Database.LogQueries)
-			if err != nil {
-				return err
-			}
-
 			var tokensPerMinute uint64 = 60
 			if cfg.HTTP.RateLimit.RequestsPerMinute > 0 {
 				tokensPerMinute = cfg.HTTP.RateLimit.RequestsPerMinute
@@ -71,9 +66,13 @@ func createHTTPCommand(cmd *cobra.Command, cfg *config.Config) {
 				return err
 			}
 
-			urlStore := postgres.NewURLRepositoryTable(db)
-			ingestStore := postgres.NewIngestRepository(db)
-			userStore := postgres.NewUserRepositoryTable(db)
+			db, err := sdumpSql.New(cfg.HTTP.Database)
+			if err != nil {
+				return err
+			}
+			urlStore := sdumpSql.NewURLRepositoryTable(db)
+			ingestStore := sdumpSql.NewIngestRepository(db)
+			userStore := sdumpSql.NewUserRepositoryTable(db)
 
 			hostName, err := os.Hostname()
 			if err != nil {
